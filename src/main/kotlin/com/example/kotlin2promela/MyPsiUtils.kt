@@ -6,6 +6,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFileSystemItem
 import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiRecursiveElementVisitor
+import com.intellij.usageView.UsageInfo
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
@@ -62,5 +63,16 @@ class MyPsiUtils {
         fun getAsyncBuilderLambda(element: KtCallExpression): KtFunction? {
             return element.lambdaArguments.getOrNull(0)?.getLambdaExpression()?.functionLiteral
         }
+
+        fun findParent(startElement: PsiElement, condition: (PsiElement) -> Boolean, fenceCondition: (PsiElement) -> Boolean): PsiElement? {
+            var currentElement: PsiElement? = startElement
+            while (currentElement != null) {
+                if (fenceCondition(currentElement)) return null
+                if (condition(currentElement)) return currentElement
+                currentElement = currentElement.parent
+            }
+            return null
+        }
+        
     }
 }

@@ -36,6 +36,8 @@
         <projectService serviceImplementation="org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.LLFirSessionInvalidationService"/>
         <projectService serviceImplementation="org.jetbrains.kotlin.analysis.low.level.api.fir.LLFirGlobalResolveComponents"/>
         <projectService serviceImplementation="org.jetbrains.kotlin.analysis.low.level.api.fir.LLFirResolveSessionService"/>
+
+        
     </extensions>
 
     <extensionPoints>

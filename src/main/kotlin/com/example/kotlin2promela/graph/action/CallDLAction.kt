@@ -1,12 +1,16 @@
 package com.example.kotlin2promela.graph.action
 
 import com.example.kotlin2promela.graph.FunctionNode
+import com.example.kotlin2promela.graph.variablePassing.DLArgument
+import com.intellij.psi.SmartPsiElementPointer
+import org.jetbrains.kotlin.psi.KtCallExpression
 
 class CallDLAction (
     override val file: String,
     override val offset: Int,
     override val performedIn: FunctionNode,
-    val receiving: FunctionNode
-) : DLCallWithArguments() {
-    override val args = mutableListOf<DLAction>()
+    override val receiving: FunctionNode,
+    override val psiPointer: SmartPsiElementPointer<KtCallExpression>,
+) : CallWithReceiverDLAction() {
+    override val args = mutableListOf<DLArgument>()
 }

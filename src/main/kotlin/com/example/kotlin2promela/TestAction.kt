@@ -12,8 +12,12 @@ class TestAction : AnAction() {
     override fun actionPerformed(e: AnActionEvent) {
         val graph = GraphBuilder(e.project!!)
             .setRelevantFiles(getRelevantFiles(e.project!!, null))
-            .buildGraph()
+            .initGraph()
+            .channelFlow()
+            .get()
         println("break")
+        
+        
     }
     
     private fun getRelevantFiles(project: Project, scope: AnalysisScope?): List<VirtualFile> {
