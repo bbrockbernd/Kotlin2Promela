@@ -123,5 +123,7 @@ class ElementFilters {
             return false
         }
         
+        fun isUsageValueArgument(el: KtNameReferenceExpression): Boolean = el.parent is KtValueArgument
+        
     }
 }

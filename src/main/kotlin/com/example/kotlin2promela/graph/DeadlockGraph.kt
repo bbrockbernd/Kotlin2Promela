@@ -21,6 +21,10 @@ class DeadlockGraph {
         }
     }
     
+    fun getFunctions(): List<FunctionNode> {
+        return funMap.values.toList()
+    }
+    
     fun BFSDown(fromParent: FunctionNode, toChild: FunctionNode): List<CallWithReceiverDLAction> {
         clearVisited()
         

@@ -9,6 +9,7 @@ import com.example.kotlin2promela.graph.variablePassing.DLActionArgument
 import com.example.kotlin2promela.graph.variablePassing.DLChannelParameter
 import com.example.kotlin2promela.graph.variablePassing.DLParameter
 import com.intellij.psi.SmartPsiElementPointer
+import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.psiUtil.createSmartPointer
 
@@ -33,21 +34,38 @@ class FunctionNode(val id: String, val fqName: String, val parameterList: List<D
     }
     
     fun getCallsToChildNodes(): List<CallWithReceiverDLAction> {
-        return extractCalls(actionList)
+        return extractCallsToChildNodes(actionList)
     }
 
-    private fun extractCalls(list: List<DLAction>): List<CallWithReceiverDLAction> {
+    private fun extractCallsToChildNodes(list: List<DLAction>): List<CallWithReceiverDLAction> {
         return list
             .filterIsInstance<DLCallWithArguments>()
             .flatMap { call ->
                 val actionListFromArgs = call.args.filterIsInstance<DLActionArgument>().map { it.action }
-                if (call is CallWithReceiverDLAction) listOf(call) + extractCalls(actionListFromArgs)
-                else extractCalls(actionListFromArgs)
+                if (call is CallWithReceiverDLAction) listOf(call) + extractCallsToChildNodes(actionListFromArgs)
+                else extractCallsToChildNodes(actionListFromArgs)
             }
     }
     override fun equals(other: Any?): Boolean {
         if (other !is FunctionNode) return false
         return id == other.id
+    }
+    
+    fun getCallFor(element: KtCallExpression): DLCallWithArguments {
+        return getCallsWithArguments().first { it.offset == element.textOffset }
+    }
+    
+    fun getCallsWithArguments(): List<DLCallWithArguments> {
+        return extractCallsWithArguments(actionList)
+    }
+
+    private fun extractCallsWithArguments(list: List<DLAction>): List<DLCallWithArguments> {
+        return list
+            .filterIsInstance<DLCallWithArguments>()
+            .flatMap { call ->
+                val actionListFromArgs = call.args.filterIsInstance<DLActionArgument>().map { it.action }
+                listOf(call) + extractCallsToChildNodes(actionListFromArgs)
+            }
     }
     
     companion object {
