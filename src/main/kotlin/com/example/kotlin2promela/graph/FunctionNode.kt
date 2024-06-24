@@ -16,7 +16,7 @@ import org.jetbrains.kotlin.psi.psiUtil.createSmartPointer
 class FunctionNode(val id: String, val fqName: String, val parameterList: List<DLParameter>, val psiPointer: SmartPsiElementPointer<KtFunction>) {
     constructor(function: KtFunction) : this(generateId(function), function.fqName.toString(), extractParameters(function), function.createSmartPointer()) 
     
-    val actionList = mutableListOf<DLAction>()
+    var actionList = mutableListOf<DLAction>()
     var visited = false
     val implicitParameters = mutableMapOf<Int, DLParameter>()
     

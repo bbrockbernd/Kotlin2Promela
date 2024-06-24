@@ -1,5 +1,6 @@
 package com.example.kotlin2promela
 
+import com.example.kotlin2promela.graph.processing.GraphBuilder
 import com.intellij.analysis.AnalysisScope
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -14,6 +15,7 @@ class TestAction : AnAction() {
             .setRelevantFiles(getRelevantFiles(e.project!!, null))
             .initGraph()
             .channelFlow()
+            .unNestCalls()
             .get()
         println("break")
         
