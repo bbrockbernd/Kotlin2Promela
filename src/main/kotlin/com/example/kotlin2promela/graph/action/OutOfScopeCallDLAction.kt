@@ -14,4 +14,7 @@ class OutOfScopeCallDLAction(
 ) : DLCallWithArguments {
     override val args = mutableListOf<DLArgument>()
     override val implArgs: MutableMap<Int, DLPassingArgument> = mutableMapOf()
+    override fun toProm(indent: Int): String {
+        return ""
+    }
 }

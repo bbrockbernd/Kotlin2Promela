@@ -2,6 +2,7 @@ package com.example.kotlin2promela.graph.action
 
 import com.example.kotlin2promela.graph.FunctionNode
 import com.example.kotlin2promela.graph.variablePassing.DLArgument
+import com.intellij.formatting.Indent
 import com.intellij.psi.SmartPsiElementPointer
 import org.jetbrains.kotlin.psi.KtCallExpression
 
@@ -13,4 +14,10 @@ class AsyncCallDLAction(
     override val psiPointer: SmartPsiElementPointer<KtCallExpression>, 
 ) : CallWithReceiverDLAction(receiving) {
     override val args: MutableList<DLArgument> = mutableListOf()
+    
+    // TODO original implementation created buffered child chan [1]. WHY?
+    override fun toProm(indent: Int): String = buildString { 
+        appendLineIndented(indent, "run ${receiving.promRefName()}(${promArgs()})")
+        appendLineIndented(indent, "run receiver(child_$offset)")
+    }
 }

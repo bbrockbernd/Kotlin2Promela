@@ -13,4 +13,10 @@ class CallDLAction (
     override val psiPointer: SmartPsiElementPointer<KtCallExpression>,
 ) : CallWithReceiverDLAction(receiving) {
     override val args = mutableListOf<DLArgument>()
+
+    // TODO original implementation created buffered child chan [1]. WHY?
+    override fun toProm(indent: Int): String = buildString {
+        appendLineIndented(indent, "run ${receiving.promRefName()}(${promArgs()})")
+        appendLineIndented(indent, "child_$offset?0")
+    }
 }

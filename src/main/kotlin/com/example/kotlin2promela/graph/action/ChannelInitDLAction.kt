@@ -12,4 +12,7 @@ class ChannelInitDLAction(
     override val performedIn: FunctionNode,
     override val psiPointer: SmartPsiElementPointer<KtProperty>
 ) : DLAction, DLValProducer<DLChannelVal>() {
+    override fun toProm(indent: Int): String = 
+        buildString { appendLineIndented(indent, "chan ${promRefName()} = [0] of {int}") }
+    override fun promRefName() = "ch$offset"
 }

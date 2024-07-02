@@ -8,4 +8,12 @@ abstract class CallWithReceiverDLAction(val receiving: FunctionNode): DLCallWith
         receiving.calledBy.add(this)
     }
     override val implArgs: MutableMap<Int, DLPassingArgument> = mutableMapOf()
+    
+    fun promArgs() = buildString {
+        val myPromArgs = implArgs.toSortedMap().values + args
+        myPromArgs.filterIsInstance<DLPassingArgument>().forEach { arg ->
+            append(arg.consumer.consumesFrom?.promRefName(), ", ")
+        }
+        append("child_${offset}")
+    }
 }

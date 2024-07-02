@@ -16,4 +16,6 @@ class ChannelRecvDLAction(
 ) : DLCallWithArguments, DLValConsumer<DLChannelVal>() {
     override val args: MutableList<DLArgument> = mutableListOf()
     override val implArgs: MutableMap<Int, DLPassingArgument> = mutableMapOf()
+    override fun toProm(indent: Int): String = 
+        buildString { appendLineIndented(indent, "${consumesFrom!!.promRefName()}?0") }
 }

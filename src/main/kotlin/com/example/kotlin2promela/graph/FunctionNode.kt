@@ -2,9 +2,7 @@ package com.example.kotlin2promela.graph
 
 import com.example.kotlin2promela.ElementFilters
 import com.example.kotlin2promela.MyPsiUtils
-import com.example.kotlin2promela.graph.action.CallWithReceiverDLAction
-import com.example.kotlin2promela.graph.action.DLAction
-import com.example.kotlin2promela.graph.action.DLCallWithArguments
+import com.example.kotlin2promela.graph.action.*
 import com.example.kotlin2promela.graph.variablePassing.DLActionArgument
 import com.example.kotlin2promela.graph.variablePassing.DLChannelParameter
 import com.example.kotlin2promela.graph.variablePassing.DLParameter
@@ -13,7 +11,7 @@ import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.psiUtil.createSmartPointer
 
-class FunctionNode(val id: String, val fqName: String, val parameterList: List<DLParameter>, val psiPointer: SmartPsiElementPointer<KtFunction>) {
+class FunctionNode(val id: String, val fqName: String, val parameterList: List<DLParameter>, val psiPointer: SmartPsiElementPointer<KtFunction>): Prom {
     constructor(function: KtFunction) : this(generateId(function), function.fqName.toString(), extractParameters(function), function.createSmartPointer()) 
     
     var actionList = mutableListOf<DLAction>()
@@ -24,6 +22,7 @@ class FunctionNode(val id: String, val fqName: String, val parameterList: List<D
     fun getChildNodes(): List<FunctionNode> {
         return extractNodesFromActionList(actionList)
     }
+    
     private fun extractNodesFromActionList(list: List<DLAction>): List<FunctionNode> {
         return list
             .filterIsInstance<DLCallWithArguments>()
@@ -47,6 +46,7 @@ class FunctionNode(val id: String, val fqName: String, val parameterList: List<D
                 else extractCallsToChildNodes(actionListFromArgs)
             }
     }
+
     override fun equals(other: Any?): Boolean {
         if (other !is FunctionNode) return false
         return id == other.id
@@ -83,6 +83,50 @@ class FunctionNode(val id: String, val fqName: String, val parameterList: List<D
                 .filter { ElementFilters.isChannelParameter(it)}
                 .map { DLChannelParameter(it.textOffset, it.containingFile.virtualFile.path, it.createSmartPointer())}
         }
+    }
+
+    
+    
+    /**
+     * Will result in:
+     * ```
+     * proctype funID(chan implParam1, mutex implParam2, chan realParam1, chan ret) {
+     *     [actions]
+     *     ret!0
+     * }
+     * ```
+     */
+    override fun toProm(indent: Int): String = buildString { 
+        appendLine("proctype ${promRefName()}(${paramListProm()}) {")
         
+        //Add kt channel inits
+        actionList
+            .filterIsInstance<ChannelInitDLAction>()
+            .forEach { append(it.toProm(1)) }
+        
+        //Add return channels for function calls
+        actionList
+            .filterIsInstance<CallWithReceiverDLAction>()
+            .forEach { appendLineIndented(1, "chan child_${it.offset} = [0] of {int}") }
+        
+        //Sync and async calls
+        actionList
+            .filter { it is CallWithReceiverDLAction || it is ChannelRecvDLAction || it is ChannelSendDLAction }
+            .forEach { action -> 
+            append(action.toProm(1))
+        }
+        appendLineIndented(1, "ret!0")
+        appendLine("}")
+    }
+    
+    fun promRefName() = id
+    
+    
+    private fun paramListProm(): String = buildString {
+        val myPromParams = implicitParameters.toSortedMap().values + parameterList
+        myPromParams.forEach { param ->
+            append(param.toProm(), "; ")
+        }
+        append("chan ret")
     }
 }

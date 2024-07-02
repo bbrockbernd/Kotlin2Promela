@@ -1,5 +1,6 @@
 package com.example.kotlin2promela
 
+import com.example.kotlin2promela.graph.ModelGenerator
 import com.example.kotlin2promela.graph.processing.GraphBuilder
 import com.intellij.analysis.AnalysisScope
 import com.intellij.openapi.actionSystem.AnAction
@@ -18,8 +19,17 @@ class TestAction : AnAction() {
             .unNestCalls()
             .pruneSyncCalls()
             .get()
-        println("break")
         
+        graph.getFunctions()
+            .filter { it.calledBy.isEmpty() }
+            .forEach {
+                val model = ModelGenerator(graph).generateForEntryPoint(it) 
+                println("---------------------------------MODEL-------------------------------------------")
+                println(model)
+                println("---------------------------------------------------------------------------------")
+            }
+        
+        println("break")
         
     }
     
