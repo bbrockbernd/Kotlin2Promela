@@ -7,18 +7,24 @@ import java.util.*
 
 class DeadlockGraph {
     private val funMap = mutableMapOf<String, FunctionNode>()
-    private val fileMap = mutableMapOf<String, MutableSet<FunctionNode>>()
     val channelInits = mutableListOf<ChannelInitDLAction>()
 
 
     fun getOrCreateFunction(func: KtFunction): FunctionNode {
         val id = FunctionNode.generateId(func)
-        val filePath = func.containingFile.virtualFile.path
         return funMap.getOrPut(id) {
             val node = FunctionNode(func)
-            addToFileMap(node, filePath)
             node
         }
+    }
+    
+    fun removeFunction(id: String) {
+        assert(funMap[id]?.calledBy?.isEmpty() == true && funMap[id]?.getChildNodes()?.isEmpty() == true)
+        funMap.remove(id)
+    }
+    
+    fun removeFunction(fn: FunctionNode) {
+        removeFunction(fn.id)
     }
     
     fun getFunctions(): List<FunctionNode> {
@@ -47,11 +53,6 @@ class DeadlockGraph {
     
     fun clearVisited() {
         funMap.values.forEach { it.visited = false }
-    }
-    
-    private fun addToFileMap(fn: FunctionNode, filePath: String) {
-        val set = fileMap.getOrPut(filePath) { mutableSetOf() }
-        set.add(fn)
     }
     
 }

@@ -16,6 +16,7 @@ class TestAction : AnAction() {
             .initGraph()
             .channelFlow()
             .unNestCalls()
+            .pruneSyncCalls()
             .get()
         println("break")
         

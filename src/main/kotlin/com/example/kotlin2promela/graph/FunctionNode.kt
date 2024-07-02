@@ -19,6 +19,7 @@ class FunctionNode(val id: String, val fqName: String, val parameterList: List<D
     var actionList = mutableListOf<DLAction>()
     var visited = false
     val implicitParameters = mutableMapOf<Int, DLParameter>()
+    val calledBy = mutableListOf<CallWithReceiverDLAction>()
     
     fun getChildNodes(): List<FunctionNode> {
         return extractNodesFromActionList(actionList)
@@ -67,7 +68,11 @@ class FunctionNode(val id: String, val fqName: String, val parameterList: List<D
                 listOf(call) + extractCallsToChildNodes(actionListFromArgs)
             }
     }
-    
+
+    override fun hashCode(): Int {
+        return id.hashCode()
+    }
+
     companion object {
         fun generateId(function: KtFunction): String {
             return MyPsiUtils.getUrl(function)!!

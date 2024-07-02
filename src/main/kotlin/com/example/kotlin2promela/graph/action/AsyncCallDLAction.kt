@@ -9,8 +9,8 @@ class AsyncCallDLAction(
     override val file: String,
     override val offset: Int,
     override val performedIn: FunctionNode,
-    override val receiving: FunctionNode,
+    receiving: FunctionNode,
     override val psiPointer: SmartPsiElementPointer<KtCallExpression>, 
-) : CallWithReceiverDLAction() {
+) : CallWithReceiverDLAction(receiving) {
     override val args: MutableList<DLArgument> = mutableListOf()
 }

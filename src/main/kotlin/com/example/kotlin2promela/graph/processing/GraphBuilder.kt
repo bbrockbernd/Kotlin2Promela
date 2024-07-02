@@ -33,6 +33,11 @@ class GraphBuilder(private val project: Project) {
         GraphUnNester(dlGraph).unNest()
         return this
     }
+    
+    fun pruneSyncCalls(): GraphBuilder {
+        GraphPruner(dlGraph).prune()
+        return this
+    }
 
 }
 
