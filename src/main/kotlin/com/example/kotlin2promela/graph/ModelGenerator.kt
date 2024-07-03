@@ -8,7 +8,7 @@ class ModelGenerator(private val dlGraph: DeadlockGraph) {
         exploreFun(fn)
         appendLine("init {")
         appendLine("    chan c = [0] of {int}")
-        appendLine("    run ${fn.promRefName()}()")
+        appendLine("    run ${fn.promRefName()}(c)")
         appendLine("    run receiver(c)")
         appendLine("}")
         appendLine()

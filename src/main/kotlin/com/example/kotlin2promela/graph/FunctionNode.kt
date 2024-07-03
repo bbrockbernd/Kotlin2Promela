@@ -12,7 +12,7 @@ import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.psiUtil.createSmartPointer
 
 class FunctionNode(val id: String, val fqName: String, val parameterList: List<DLParameter>, val psiPointer: SmartPsiElementPointer<KtFunction>): Prom {
-    constructor(function: KtFunction) : this(generateId(function), function.fqName.toString(), extractParameters(function), function.createSmartPointer()) 
+    constructor(function: KtFunction) : this(generateId(function), function.fqName?.toString() ?: "lambda", extractParameters(function), function.createSmartPointer()) 
     
     var actionList = mutableListOf<DLAction>()
     var visited = false
@@ -97,17 +97,24 @@ class FunctionNode(val id: String, val fqName: String, val parameterList: List<D
      * ```
      */
     override fun toProm(indent: Int): String = buildString { 
+        // Function comment and signature
+        appendLine("/* function: ${fqName} */")
         appendLine("proctype ${promRefName()}(${paramListProm()}) {")
-        
-        //Add kt channel inits
-        actionList
+
+        // Channel inits
+        val channelInits = actionList
             .filterIsInstance<ChannelInitDLAction>()
-            .forEach { append(it.toProm(1)) }
+        if (channelInits.isNotEmpty()) appendLineIndented(1, "/* Channel initializations */")
+        channelInits.forEach { append(it.toProm(1)) }
+        if (channelInits.isNotEmpty()) appendLine()
         
-        //Add return channels for function calls
-        actionList
+        // Return channels
+        val returnChannelActions = actionList
             .filterIsInstance<CallWithReceiverDLAction>()
+        if (returnChannelActions.isNotEmpty()) appendLineIndented(1, "/* Function call return channels */")
+        returnChannelActions
             .forEach { appendLineIndented(1, "chan child_${it.offset} = [0] of {int}") }
+        if (returnChannelActions.isNotEmpty()) appendLine()
         
         //Sync and async calls
         actionList
