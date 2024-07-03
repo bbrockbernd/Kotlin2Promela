@@ -7,7 +7,10 @@ import com.example.kotlin2promela.graph.variablePassing.DLActionArgument
 
 class GraphUnNester(val dlGraph: DeadlockGraph) {
     fun unNest() {
-        dlGraph.getFunctions().forEach { fn ->
+        println("---UN-NESTING-ACTIONS----")
+        val totalFuns = dlGraph.getFunctions().size
+        dlGraph.getFunctions().forEachIndexed { ind, fn ->
+            println("fn $ind/$totalFuns")
             val newActionList = fn.actionList
                 .flatMap { action -> 
                     if (action is DLCallWithArguments) {

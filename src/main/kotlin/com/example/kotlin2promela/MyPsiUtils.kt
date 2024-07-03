@@ -19,7 +19,11 @@ class MyPsiUtils {
             if (containingFile == null) return null
             val virtualFile = containingFile.virtualFile ?: return null
             val pathAndLine = if (element is PsiFileSystemItem) virtualFile.path else virtualFile.path + "_" + element.textOffset
-            return pathAndLine.replace('/', '_').replace('\\', '_').replace('.', '_')
+            return pathAndLine
+                .replace('/', '_')
+                .replace('\\', '_')
+                .replace('.', '_')
+                .replace('-', '_')
         }
         
         fun findAllChildren(

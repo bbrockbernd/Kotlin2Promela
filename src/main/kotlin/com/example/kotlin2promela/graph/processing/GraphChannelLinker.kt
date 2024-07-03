@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.psi.*
 class GraphChannelLinker(val dlGraph: DeadlockGraph) {
 
     fun link() {
+        println("----LINK-CHANNELS----")
         dlGraph.channelInits.forEach { chanInit ->
             val psiElement = chanInit.psiPointer.element!!
             ReferencesSearch.search(psiElement).findAll().forEach { usage ->

@@ -17,7 +17,7 @@ intellij {
     version.set("2024.1")
     type.set("IC") // Target IDE Platform
 
-    plugins.set(listOf("Kotlin", "IdeaVIM:2.10.2"))
+    plugins.set(listOf("Kotlin", "IdeaVIM:2.10.2", "org.jetbrains.android:241.14494.127"))
 }
 
 tasks {
@@ -28,6 +28,10 @@ tasks {
     }
     withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
         kotlinOptions.jvmTarget = "17"
+    }
+    
+    runIde {
+        maxHeapSize = "16G"
     }
 
     patchPluginXml {

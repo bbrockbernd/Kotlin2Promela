@@ -16,7 +16,11 @@ import org.jetbrains.kotlin.psi.psiUtil.createSmartPointer
 
 class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val relevantFiles: List<VirtualFile>) {
     fun intialize() {
-        relevantFiles.forEach { file ->
+        println("----INITIALIZE----")
+        val totalFiles = relevantFiles.size
+        
+        relevantFiles.forEachIndexed { ind, file ->
+            println("Handling file $ind/$totalFiles")
             MyPsiUtils.findFunctionDefinitions(file, project).forEach { fn ->
                 exploreFunctionDeclaration(fn)
             }
@@ -64,7 +68,7 @@ class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val rel
     }
 
     private fun processAsyncCall(call: KtCallExpression, callerFun: FunctionNode): DLAction? {
-        val ktFunction = MyPsiUtils.getAsyncBuilderLambda(call)!!
+        val ktFunction = MyPsiUtils.getAsyncBuilderLambda(call) ?: return null
         if (relevantFiles.contains(ktFunction.containingFile.virtualFile)) {
             val calledFunNode = exploreFunctionDeclaration(ktFunction)
             return AsyncCallDLAction(
@@ -79,10 +83,10 @@ class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val rel
     }
 
     private fun processCall(call: KtCallExpression, callerFun: FunctionNode): DLAction? {
-        val ktFunction = MyPsiUtils.getFunForCall(call)!!
+        val ktFunction = MyPsiUtils.getFunForCall(call) 
 
         // Create in or out of scope callAction
-        val callAction = if (relevantFiles.contains(ktFunction.containingFile.virtualFile)) {
+        val callAction = if (ktFunction != null && relevantFiles.contains(ktFunction.containingFile.virtualFile)) {
             val calledFunNode = exploreFunctionDeclaration(ktFunction)
             CallDLAction(call.containingFile.virtualFile.path, call.textOffset, callerFun, calledFunNode, call.createSmartPointer())
         } else if (ElementFilters.isSendCall(call)) {
