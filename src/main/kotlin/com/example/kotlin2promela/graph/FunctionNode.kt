@@ -11,8 +11,15 @@ import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.psiUtil.createSmartPointer
 
-class FunctionNode(val id: String, val fqName: String, val parameterList: List<DLParameter>, val psiPointer: SmartPsiElementPointer<KtFunction>): Prom {
-    constructor(function: KtFunction) : this(generateId(function), function.fqName?.toString() ?: "lambda", extractParameters(function), function.createSmartPointer()) 
+
+class FunctionNode(val info: FunctionInfo, val parameterList: List<DLParameter>, val psiPointer: SmartPsiElementPointer<KtFunction>): Prom {
+    data class FunctionInfo(val id: String, val fqName: String, val file: String, val offset: Int)
+
+    constructor(function: KtFunction) : this(
+        FunctionInfo(generateId(function), function.fqName?.toString() ?: "lambda", "file", 0),
+        extractParameters(function), 
+        function.createSmartPointer()
+    ) 
     
     var actionList = mutableListOf<DLAction>()
     var visited = false
@@ -49,7 +56,7 @@ class FunctionNode(val id: String, val fqName: String, val parameterList: List<D
 
     override fun equals(other: Any?): Boolean {
         if (other !is FunctionNode) return false
-        return id == other.id
+        return info.id == other.info.id
     }
     
     fun getCallFor(element: KtCallExpression): DLCallWithArguments {
@@ -70,7 +77,7 @@ class FunctionNode(val id: String, val fqName: String, val parameterList: List<D
     }
 
     override fun hashCode(): Int {
-        return id.hashCode()
+        return info.id.hashCode()
     }
 
     companion object {
@@ -98,7 +105,7 @@ class FunctionNode(val id: String, val fqName: String, val parameterList: List<D
      */
     override fun toProm(indent: Int): String = buildString { 
         // Function comment and signature
-        appendLine("/* function: ${fqName} */")
+        appendLine("/* function: ${info.fqName} */")
         appendLine("proctype ${promRefName()}(${paramListProm()}) {")
 
         // Channel inits
@@ -126,7 +133,7 @@ class FunctionNode(val id: String, val fqName: String, val parameterList: List<D
         appendLine("}")
     }
     
-    fun promRefName() = id
+    fun promRefName() = info.id
     
     
     private fun paramListProm(): String = buildString {
