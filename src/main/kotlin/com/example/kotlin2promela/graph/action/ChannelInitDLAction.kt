@@ -12,7 +12,8 @@ class ChannelInitDLAction(
     override val file: String, 
     override val offset: Int,
     override val performedIn: FunctionNode,
-    override val psiPointer: SmartPsiElementPointer<KtCallExpression>
+    override val psiPointer: SmartPsiElementPointer<KtCallExpression>,
+    val channelCapacity: Int
 ) : DLAction {
     override fun getChildActions(): List<DLAction> = emptyList()
     override fun unNest(): List<DLAction> = listOf()
@@ -20,7 +21,7 @@ class ChannelInitDLAction(
     override fun toProm(indent: Int): String = ""
     
     fun promGlobal(nChans: Int): String = buildString {
-        appendLine("chan glob_$globalRefName[$nChans] = [0] of {int}")
+        appendLine("chan glob_$globalRefName[$nChans] = [${channelCapacity}] of {int}")
         appendLine("int glob_${globalRefName}_counter = 0")
         appendLine("inline new_$globalRefName(ch) {")
         appendLineIndented(1, "atomic {")
@@ -32,6 +33,4 @@ class ChannelInitDLAction(
     }
     
     val globalRefName = "ch_$id"
-    
-//    override val promRefName = "ch_$offset"
 }
