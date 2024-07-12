@@ -1,11 +1,21 @@
 package com.example.kotlin2promela.graph
 
+import com.example.kotlin2promela.graph.action.ChannelInitDLAction
+
 class ModelGenerator(private val dlGraph: DeadlockGraph) {
     
     private val funSet = mutableSetOf<FunctionNode>()
+    private val chanSet = mutableSetOf<ChannelInitDLAction>()
     
     fun generateForEntryPoint(fn: FunctionNode): String = buildString {   
         exploreFun(fn)
+        collectChannels()
+        
+        chanSet.forEach{
+            append(it.promGlobal(4))
+            appendLine()
+        }
+        
         appendLine("init {")
         appendLine("    chan c = [0] of {int}")
         appendLine("    run ${fn.promRefName()}(c)")
@@ -29,6 +39,7 @@ class ModelGenerator(private val dlGraph: DeadlockGraph) {
         fn.getChildNodes().forEach { exploreFun(it) }
     }
     
+    private fun collectChannels() = chanSet.addAll(funSet.flatMap { it.getChanInits() })
     
     
 }

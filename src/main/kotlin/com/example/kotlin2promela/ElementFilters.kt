@@ -10,6 +10,8 @@ class ElementFilters {
         fun isNamedFunction(psiElement: PsiElement) = psiElement is KtNamedFunction
         fun isFunction(psiElement: PsiElement) = psiElement is KtFunction
         fun isCall(psiElement: PsiElement) = psiElement is KtCallExpression
+        fun isReturn(psiElement: PsiElement) = psiElement is KtReturnExpression
+        fun isProperty(psiElement: PsiElement) = psiElement is KtProperty
         
         fun runBlockingBuilderDeclaration(psiElement: PsiElement) =
             psiElement is KtNamedFunction && psiElement.fqName?.toString() == "kotlinx.coroutines.runBlocking" 
@@ -107,18 +109,36 @@ class ElementFilters {
             return false
         }
         
+        fun isReturnUsage(refexpr: KtNameReferenceExpression): Boolean {
+            val parent = refexpr.parent
+            return parent is KtReturnExpression
+        }
+        
         fun isChannelParameter(param: KtParameter): Boolean {
             if (param.typeReference?.nameForReceiverLabel() == "Channel") {
                 val typeEl = param.typeReference!!.typeElement
-                if (typeEl is KtUserType) {
-                    val refExpr = typeEl.referenceExpression
-                    if (refExpr is KtNameReferenceExpression) {
-                        val typeDef = refExpr.reference?.resolve()
-                        if (typeDef is KtClass) {
-                            return typeDef.fqName.toString() == "kotlinx.coroutines.channels.Channel"
-                        }
+                return isChannelTypeElement(typeEl)
+            }
+            return false
+        }
+        
+        fun isChannelTypeElement(typeEl: KtTypeElement?): Boolean {
+            if (typeEl is KtUserType) {
+                val refExpr = typeEl.referenceExpression
+                if (refExpr is KtNameReferenceExpression) {
+                    val typeDef = refExpr.reference?.resolve()
+                    if (typeDef is KtClass) {
+                        return typeDef.fqName.toString() == "kotlinx.coroutines.channels.Channel"
                     }
                 }
+            }
+            return false
+        }
+        
+        fun isChannelReturnType(el: KtTypeReference): Boolean {
+            if (el.nameForReceiverLabel() == "Channel") {
+                val typeEl = el.typeElement
+                return isChannelTypeElement(typeEl)
             }
             return false
         }

@@ -8,10 +8,8 @@ import com.example.kotlin2promela.graph.action.*
 import com.example.kotlin2promela.graph.variablePassing.DLActionArgument
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
-import org.jetbrains.kotlin.psi.KtCallExpression
-import org.jetbrains.kotlin.psi.KtFunction
-import org.jetbrains.kotlin.psi.KtLambdaArgument
-import org.jetbrains.kotlin.psi.KtProperty
+import com.intellij.psi.PsiElement
+import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.createSmartPointer
 
 class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val relevantFiles: List<VirtualFile>) {
@@ -36,12 +34,12 @@ class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val rel
         // Check all relevant elements in body
         MyPsiUtils.findAllChildren(
             fn.bodyExpression,
-            { ElementFilters.isCall(it) },
+            { ElementFilters.isCall(it) || ElementFilters.isReturn(it) || ElementFilters.isProperty(it)},
             { ElementFilters.isFunction(it) },
             pruneOnCondition = true,
             includeStart = true
-        ).forEach { call ->
-            val action = exploreFunctionCall(call as KtCallExpression, funNode)
+        ).forEach { expr ->
+            val action = processExpression(expr as KtExpression, funNode)
             action?.let { funNode.actionList.add(it) }
         }
 
@@ -49,18 +47,48 @@ class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val rel
         funNode.actionList.sortBy { it.offset }
         return funNode
     }
-    private fun exploreFunctionCall(call: KtCallExpression, callerFun: FunctionNode): DLAction? {
+    
+    private fun exploreExpression(expr: PsiElement?, containingFun: FunctionNode): DLAction? {
+        val call = MyPsiUtils.findAllChildren(
+            expr,
+            { ElementFilters.isCall(it) || ElementFilters.isProperty(it) },
+            { ElementFilters.isFunction(it) },
+            pruneOnCondition = true,
+            includeStart = true
+        ).firstOrNull()
+        if (call == null) return null
+        return processExpression(call as KtCallExpression, containingFun)
+    }
+    
+    private fun processExpression(expr: KtExpression, containingFun: FunctionNode): DLAction? {
         // TODO this will probably break when calling a lambda
         return when {
-            ElementFilters.isLaunchBuilder(call) || ElementFilters.isAsyncBuilder(call) -> processAsyncCall(call, callerFun)
-            ElementFilters.isChannelInit(call) -> processChannelInit(call, callerFun)
-            else -> processCall(call, callerFun)
+            ElementFilters.isLaunchBuilder(expr) || ElementFilters.isAsyncBuilder(expr) -> processAsyncCall(expr as KtCallExpression, containingFun)
+            ElementFilters.isChannelInit(expr) -> processChannelInit(expr as KtCallExpression, containingFun)
+            ElementFilters.isReturn(expr) -> processReturn(expr as KtReturnExpression, containingFun)
+            ElementFilters.isProperty(expr) -> processPropertyAssignment(expr as KtProperty, containingFun)
+            else -> processCall(expr as KtCallExpression, containingFun)
         }
+    }
+    
+    private fun processPropertyAssignment(prop: KtProperty, containingFun: FunctionNode): DLAction? {
+        // TODO Delegate expression
+        val propValue = prop.initializer
+        val propAction = AssignPropertyDLAction(prop.containingFile.virtualFile.path, prop.textOffset, containingFun, prop.createSmartPointer(), null, null)
+        exploreExpression(propValue, containingFun)?.let{ propAction.assigning = DLActionArgument(it) }
+        return propAction
+    }
+    
+    private fun processReturn(ret: KtReturnExpression, containingFun: FunctionNode): DLAction? {
+        val retValue = ret.returnedExpression ?: return null
+        val retAction = DLReturnAction(ret.containingFile.virtualFile.path, ret.textOffset, containingFun, ret.createSmartPointer(), null)
+        exploreExpression(retValue, containingFun)?.let{ retAction.returning = DLActionArgument(it) }
+        return retAction
     }
 
     private fun processChannelInit(call: KtCallExpression, callerFun: FunctionNode): DLAction? {
         if (call.parent is KtProperty) {
-            val channelInit = ChannelInitDLAction(call.containingFile.virtualFile.path, call.textOffset, callerFun, (call.parent as KtProperty).createSmartPointer())
+            val channelInit = ChannelInitDLAction(MyPsiUtils.getId(call)!!, call.containingFile.virtualFile.path, call.textOffset, callerFun, (call.parent as KtProperty).createSmartPointer())
             dlGraph.channelInits.add(channelInit)
             return channelInit
         }
@@ -106,19 +134,8 @@ class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val rel
                 val lamCall =
                     CallDLAction(arg.containingFile.virtualFile.path, arg.textOffset, callerFun, receivingFun, call.createSmartPointer())
                 callAction.args.add(DLActionArgument(lamCall))
-
             } else {
-                MyPsiUtils.findAllChildren(
-                    arg,
-                    { ElementFilters.isCall(it) },
-                    { ElementFilters.isFunction(it) },
-                    pruneOnCondition = true,
-                    includeStart = true
-                ).forEach { nestedCall ->
-                    val action = exploreFunctionCall(nestedCall as KtCallExpression, callerFun)
-
-                    action?.let { callAction.args.add(DLActionArgument(it)) }
-                }
+                exploreExpression(arg, callerFun)?.let{ callAction.args.add(DLActionArgument(it)) }
             }
         }
         return callAction

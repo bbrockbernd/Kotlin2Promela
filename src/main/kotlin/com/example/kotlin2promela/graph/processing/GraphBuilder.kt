@@ -38,21 +38,4 @@ class GraphBuilder(private val project: Project) {
         GraphPruner(dlGraph).prune()
         return this
     }
-
 }
-
-
-
-// SLICER shite for when I change my mind
-
-//val params = SliceAnalysisParams()
-//params.dataFlowToThis = false
-//params.scope = AnalysisScope(project)
-//params.showInstanceDereferences = true
-//
-//val rootUsage = LanguageSlicing.getProvider(it.psiPointer.element!!).createRootUsage(it.psiPointer.element!!, params)
-//val sliceRootNode = SliceRootNode(project, DuplicateMap(), rootUsage)
-//val treeStructure = DLTreeStructure(project, sliceRootNode)
-//
-//val sliceProvider = KotlinSliceProvider()
-//val results = sliceProvider.leafAnalyzer.calcLeafExpressions(sliceRootNode, treeStructure, sliceProvider.leafAnalyzer.createMap())

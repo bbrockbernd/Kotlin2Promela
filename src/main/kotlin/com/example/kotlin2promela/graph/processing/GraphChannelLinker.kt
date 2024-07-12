@@ -4,13 +4,13 @@ import com.example.kotlin2promela.ElementFilters
 import com.example.kotlin2promela.MyPsiUtils
 import com.example.kotlin2promela.graph.DeadlockGraph
 import com.example.kotlin2promela.graph.FunctionNode
+import com.example.kotlin2promela.graph.action.AssignPropertyDLAction
+import com.example.kotlin2promela.graph.action.CallDLAction
 import com.example.kotlin2promela.graph.action.ChannelRecvDLAction
 import com.example.kotlin2promela.graph.action.ChannelSendDLAction
-import com.example.kotlin2promela.graph.variablePassing.DLChannelParameter
-import com.example.kotlin2promela.graph.variablePassing.DLPassingArgument
-import com.example.kotlin2promela.graph.variablePassing.DLValConsumer
-import com.example.kotlin2promela.graph.variablePassing.DLValProducer
-import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLChannelVal
+import com.example.kotlin2promela.graph.variablePassing.*
+import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLChannelValType
+import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLUnitValType
 import com.intellij.psi.search.searches.ReferencesSearch
 import org.jetbrains.kotlin.psi.*
 
@@ -18,6 +18,37 @@ class GraphChannelLinker(val dlGraph: DeadlockGraph) {
 
     fun link() {
         println("----LINK-CHANNELS----")
+        linkInits()
+        linkParams()
+        linkCallReturnValues()
+    }
+
+    // Link properties and/or mark functions that are not in properties to correctly unnest later.
+    private fun linkCallReturnValues() {
+        dlGraph.getFunctions().forEach { fn ->
+            if (fn.returnType !is DLUnitValType) {
+                fn.calledBy.filterIsInstance<CallDLAction>().forEach { call ->
+                    // Mark call as important
+                    call.returnType = fn.returnType
+                    // if call is party of property -> Link property
+                    val callParent = call.getParent()
+                    if (callParent is AssignPropertyDLAction) {
+                        val provider = DLChannelProperty(callParent.offset, callParent.file, callParent.psiPointer)
+                        callParent.assignee = provider
+                        val ktProp: KtProperty = callParent.psiPointer!!.element!!
+                        ReferencesSearch.search(ktProp).findAll().forEach { usage ->
+                            if (usage.element !is KtNameReferenceExpression) {
+                                throw IllegalStateException("Expected name reference but is: ${usage.element.javaClass.name}")
+                            }
+                            processUsage(usage.element as KtNameReferenceExpression, provider, fn, provider.offset)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun linkInits() {
         dlGraph.channelInits.forEach { chanInit ->
             val psiElement = chanInit.psiPointer.element!!
             ReferencesSearch.search(psiElement).findAll().forEach { usage ->
@@ -32,6 +63,9 @@ class GraphChannelLinker(val dlGraph: DeadlockGraph) {
                 )
             }
         }
+    }
+    
+    private fun linkParams() {
         dlGraph.getFunctions().forEach { fn ->
             fn.parameterList.filterIsInstance<DLChannelParameter>().forEach { chanParam ->
                 val psiElement = chanParam.psiPointer?.element!!
@@ -47,7 +81,7 @@ class GraphChannelLinker(val dlGraph: DeadlockGraph) {
 
     private fun processUsage(
         usage: KtNameReferenceExpression,
-        chanProd: DLValProducer<DLChannelVal>,
+        chanProd: DLValProvider<DLChannelValType>,
         prodFun: FunctionNode,
         offset: Int
     ) {
@@ -57,14 +91,16 @@ class GraphChannelLinker(val dlGraph: DeadlockGraph) {
 
         val chanProducer = if (prodFun != usageFun) { // If not pass is implicit
             val path = dlGraph.BFSDown(prodFun, usageFun)
-            if (path.isEmpty()) throw IllegalStateException("Path must be at least 1 call")
+            if (path.isEmpty()) {
+                throw IllegalStateException("Path must be at least 1 call") 
+            }
 
             path.first().implArgs.computeIfAbsent(offset) { _ ->
                 DLPassingArgument(offset, DLValConsumer.createAndLinkChannelConsumer(chanProd))
             }
 
             // Hack use chaninit textOffset to differentiate
-            path.first().receiving.implicitParameters.computeIfAbsent(offset) {
+            path.first().callee.implicitParameters.computeIfAbsent(offset) {
                 DLChannelParameter(
                     offset,
                     usage.containingFile.virtualFile.path,
@@ -80,7 +116,7 @@ class GraphChannelLinker(val dlGraph: DeadlockGraph) {
                         DLValConsumer.createAndLinkChannelConsumer(param)
                     )
                 }
-                path[i].receiving.implicitParameters.computeIfAbsent(offset) { _ ->
+                path[i].callee.implicitParameters.computeIfAbsent(offset) { _ ->
                     DLChannelParameter(
                         offset,
                         usage.containingFile.virtualFile.path,
@@ -88,7 +124,7 @@ class GraphChannelLinker(val dlGraph: DeadlockGraph) {
                     )
                 }
             }
-            path.last().receiving.implicitParameters[offset] as DLChannelParameter
+            path.last().callee.implicitParameters[offset] as DLChannelParameter
         } else chanProd
 
 
@@ -102,6 +138,10 @@ class GraphChannelLinker(val dlGraph: DeadlockGraph) {
                     DLValConsumer.createAndLinkChannelConsumer(chanProducer)
                 )
             )
+        } else if (ElementFilters.isReturnUsage(usage)) {
+            val psiReturn = MyPsiUtils.findParent(usage, { it is KtReturnExpression }, { it is KtFile }) as KtReturnExpression
+            val dlReturn = usageFun.getReturnFor(psiReturn)
+            dlReturn.returning = DLPassingArgument(usage.textOffset, DLValConsumer.createAndLinkChannelConsumer(chanProducer))
         } else if (ElementFilters.isSendUsage(usage)) {
             val dotQual = usage.parent as KtDotQualifiedExpression
             val callExpr = dotQual.selectorExpression as KtCallExpression

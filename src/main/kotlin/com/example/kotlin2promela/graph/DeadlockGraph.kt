@@ -1,6 +1,6 @@
 package com.example.kotlin2promela.graph
 
-import com.example.kotlin2promela.graph.action.CallWithReceiverDLAction
+import com.example.kotlin2promela.graph.action.CallWithCalleeFunDLAction
 import com.example.kotlin2promela.graph.action.ChannelInitDLAction
 import org.jetbrains.kotlin.psi.KtFunction
 import java.util.*
@@ -24,17 +24,17 @@ class DeadlockGraph {
     }
     
     fun removeFunction(fn: FunctionNode) {
-        removeFunction(fn.id)
+        removeFunction(fn.info.id)
     }
     
     fun getFunctions(): List<FunctionNode> {
         return funMap.values.toList()
     }
     
-    fun BFSDown(fromParent: FunctionNode, toChild: FunctionNode): List<CallWithReceiverDLAction> {
+    fun BFSDown(fromParent: FunctionNode, toChild: FunctionNode): List<CallWithCalleeFunDLAction> {
         clearVisited()
         
-        data class ToVisit(val nodeToVisit: FunctionNode, val callPath: List<CallWithReceiverDLAction>)
+        data class ToVisit(val nodeToVisit: FunctionNode, val callPath: List<CallWithCalleeFunDLAction>)
         val queue: Queue<ToVisit> = LinkedList()
         queue.add(ToVisit(fromParent, listOf()))
         while (queue.isNotEmpty()) {
@@ -44,8 +44,8 @@ class DeadlockGraph {
             currentNode.visited = true
             
             currentNode.getCallsToChildNodes()
-                .filter { !it.receiving.visited }
-                .forEach { queue.add(ToVisit(it.receiving, currentTask.callPath + it)) }
+                .filter { !it.callee.visited }
+                .forEach { queue.add(ToVisit(it.callee, currentTask.callPath + it)) }
             
         }
         return listOf()
