@@ -87,12 +87,9 @@ class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val rel
     }
 
     private fun processChannelInit(call: KtCallExpression, callerFun: FunctionNode): DLAction? {
-        if (call.parent is KtProperty) {
-            val channelInit = ChannelInitDLAction(MyPsiUtils.getId(call)!!, call.containingFile.virtualFile.path, call.textOffset, callerFun, (call.parent as KtProperty).createSmartPointer())
-            dlGraph.channelInits.add(channelInit)
-            return channelInit
-        }
-        return null
+        val channelInit = ChannelInitDLAction(MyPsiUtils.getId(call)!!, call.containingFile.virtualFile.path, call.textOffset, callerFun, call.createSmartPointer())
+        dlGraph.channelInits.add(channelInit)
+        return channelInit
     }
 
     private fun processAsyncCall(call: KtCallExpression, callerFun: FunctionNode): DLAction? {

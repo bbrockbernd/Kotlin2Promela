@@ -40,7 +40,7 @@ class GraphChannelLinker(val dlGraph: DeadlockGraph) {
                             if (usage.element !is KtNameReferenceExpression) {
                                 throw IllegalStateException("Expected name reference but is: ${usage.element.javaClass.name}")
                             }
-                            processUsage(usage.element as KtNameReferenceExpression, provider, fn, provider.offset)
+                            processUsage(usage.element as KtNameReferenceExpression, provider, call.performedIn, provider.offset)
                         }
                     }
                 }
@@ -50,17 +50,23 @@ class GraphChannelLinker(val dlGraph: DeadlockGraph) {
 
     private fun linkInits() {
         dlGraph.channelInits.forEach { chanInit ->
-            val psiElement = chanInit.psiPointer.element!!
-            ReferencesSearch.search(psiElement).findAll().forEach { usage ->
-                if (usage.element !is KtNameReferenceExpression) {
-                    throw IllegalStateException("Expected name reference but is: ${usage.element.javaClass.name}")
+            if (chanInit.getParent() is AssignPropertyDLAction) {
+                val chanPropAssignment = chanInit.getParent() as AssignPropertyDLAction
+                val prop = DLChannelProperty(chanPropAssignment.offset, chanPropAssignment.file, chanPropAssignment.psiPointer)
+                chanPropAssignment.assignee = prop
+                
+                val psiElement = chanPropAssignment.psiPointer?.element!!
+                ReferencesSearch.search(psiElement).findAll().forEach { usage ->
+                    if (usage.element !is KtNameReferenceExpression) {
+                        throw IllegalStateException("Expected name reference but is: ${usage.element.javaClass.name}")
+                    }
+                    processUsage(
+                        usage.element as KtNameReferenceExpression,
+                        prop,
+                        chanInit.performedIn,
+                        chanInit.offset
+                    )
                 }
-                processUsage(
-                    usage.element as KtNameReferenceExpression,
-                    chanInit,
-                    chanInit.performedIn,
-                    chanInit.offset
-                )
             }
         }
     }

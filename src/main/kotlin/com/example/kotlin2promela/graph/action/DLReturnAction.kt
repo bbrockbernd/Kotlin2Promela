@@ -23,10 +23,11 @@ class DLReturnAction(
             val actionToReturn = (returning as DLActionArgument).action
             val actionList = mutableListOf<DLAction>()
             actionToReturn.unNest().forEach { actionList.add(it) }
+            
             val newProp = DLChannelProperty(actionToReturn.offset, actionToReturn.file, null)
             val passingArgument = DLPassingArgument(actionToReturn.offset, DLValConsumer.createAndLinkChannelConsumer(newProp))
-            returning = passingArgument
             val propAssignAction = AssignPropertyDLAction(actionToReturn.file, actionToReturn.offset, actionToReturn.performedIn, null, returning, newProp)
+            returning = passingArgument
             actionList.add(propAssignAction)
             return actionList
         }

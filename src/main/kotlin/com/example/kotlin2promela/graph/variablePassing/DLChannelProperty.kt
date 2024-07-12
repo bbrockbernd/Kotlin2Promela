@@ -12,6 +12,6 @@ class DLChannelProperty(
     
     override fun toProm(indent: Int): String = promRefName
 
-    override val promRefName = "ch$offset"
+    override val promRefName = "ch_$offset"
 }
     

@@ -4,6 +4,7 @@ import com.example.kotlin2promela.graph.FunctionNode
 import com.example.kotlin2promela.graph.variablePassing.DLValProvider
 import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLChannelValType
 import com.intellij.psi.SmartPsiElementPointer
+import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtProperty
 
 class ChannelInitDLAction(
@@ -11,15 +12,12 @@ class ChannelInitDLAction(
     override val file: String, 
     override val offset: Int,
     override val performedIn: FunctionNode,
-    override val psiPointer: SmartPsiElementPointer<KtProperty>
-) : DLAction, DLValProvider<DLChannelValType>() {
+    override val psiPointer: SmartPsiElementPointer<KtCallExpression>
+) : DLAction {
     override fun getChildActions(): List<DLAction> = emptyList()
     override fun unNest(): List<DLAction> = listOf()
 
-    override fun toProm(indent: Int): String = buildString { 
-        appendLineIndented(indent, "chan $promRefName") 
-        appendLineIndented(indent, "new_$globalRefName($promRefName)")
-    }
+    override fun toProm(indent: Int): String = ""
     
     fun promGlobal(nChans: Int): String = buildString {
         appendLine("chan glob_$globalRefName[$nChans] = [0] of {int}")
@@ -35,5 +33,5 @@ class ChannelInitDLAction(
     
     val globalRefName = "ch_$id"
     
-    override val promRefName = "ch_$offset"
+//    override val promRefName = "ch_$offset"
 }
