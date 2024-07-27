@@ -18,19 +18,27 @@ class DLReturnAction(
     }
 
     override fun unNest(): List<DLAction> {
+        // Nothing to unnest
         if (returning is DLPassingArgument || returning == null) return listOf()
-        else {
-            val actionToReturn = (returning as DLActionArgument).action
-            val actionList = mutableListOf<DLAction>()
-            actionToReturn.unNest().forEach { actionList.add(it) }
-            
-            val newProp = DLChannelProperty(actionToReturn.offset, actionToReturn.file, null)
-            val passingArgument = DLPassingArgument(actionToReturn.offset, DLValConsumer.createAndLinkChannelConsumer(newProp))
-            val propAssignAction = AssignPropertyDLAction(actionToReturn.file, actionToReturn.offset, actionToReturn.performedIn, null, returning, newProp)
-            returning = passingArgument
-            actionList.add(propAssignAction)
+        
+        // Un-nesting returned expression
+        val actionToReturn = (returning as DLActionArgument).action
+        val actionList = mutableListOf<DLAction>()
+        actionToReturn.unNest().forEach { actionList.add(it) }
+        
+        // If out of scope return nothing.
+        if (actionToReturn is OutOfScopeCallDLAction) {
+            returning = null
             return actionList
         }
+        
+        // Create prop to receive value in and return
+        val newProp = DLChannelProperty(actionToReturn.offset, actionToReturn.file, null)
+        val passingArgument = DLPassingArgument(actionToReturn.offset, DLValConsumer.createAndLinkChannelConsumer(newProp))
+        val propAssignAction = AssignPropertyDLAction(actionToReturn.file, actionToReturn.offset, actionToReturn.performedIn, null, returning, newProp)
+        returning = passingArgument
+        actionList.add(propAssignAction)
+        return actionList
     }
 
     override fun toProm(indent: Int): String = buildString {

@@ -49,15 +49,25 @@ class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val rel
     }
     
     private fun exploreExpression(expr: PsiElement?, containingFun: FunctionNode): DLAction? {
-        val call = MyPsiUtils.findAllChildren(
+        val calls = MyPsiUtils.findAllChildren(
             expr,
-            { ElementFilters.isCall(it) || ElementFilters.isProperty(it) },
+            { ElementFilters.isCall(it) },
             { ElementFilters.isFunction(it) },
             pruneOnCondition = true,
             includeStart = true
-        ).firstOrNull()
-        if (call == null) return null
-        return processExpression(call as KtCallExpression, containingFun)
+        )
+        
+        // Hacks for complex assign constructs, if only one call is made it is returned e.g. val bla = call()
+        // if more calls are made its probably a val bla = if (joe) call() else otherCall()
+        // we do not support this but treat it as if they are all called but do not assign
+        if (calls.size == 1) {
+            return processExpression(calls[0] as KtCallExpression, containingFun)
+        }
+        calls.forEach { call -> 
+            val action = processExpression(call as KtCallExpression, containingFun)
+            action?.let { containingFun.actionList.add(it) }
+        }
+        return null
     }
     
     private fun processExpression(expr: KtExpression, containingFun: FunctionNode): DLAction? {
@@ -75,7 +85,8 @@ class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val rel
         // TODO Delegate expression
         val propValue = prop.initializer
         val propAction = AssignPropertyDLAction(prop.containingFile.virtualFile.path, prop.textOffset, containingFun, prop.createSmartPointer(), null, null)
-        exploreExpression(propValue, containingFun)?.let{ propAction.assigning = DLActionArgument(it) }
+        val assigning = exploreExpression(propValue, containingFun) ?: return null
+        propAction.assigning = DLActionArgument(assigning) 
         return propAction
     }
     
@@ -110,7 +121,6 @@ class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val rel
 
     private fun processCall(call: KtCallExpression, callerFun: FunctionNode): DLAction? {
         val ktFunction = MyPsiUtils.getFunForCall(call) 
-
         // Create in or out of scope callAction
         val callAction = if (ktFunction != null && relevantFiles.contains(ktFunction.containingFile.virtualFile)) {
             val calledFunNode = exploreFunctionDeclaration(ktFunction)

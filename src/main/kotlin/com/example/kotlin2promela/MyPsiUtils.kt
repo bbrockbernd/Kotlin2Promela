@@ -27,7 +27,7 @@ class MyPsiUtils {
             val containingFile = if (element is PsiFileSystemItem) element else element.containingFile
             if (containingFile == null) return null
             val virtualFile = containingFile.virtualFile ?: return null
-            val hash = (virtualFile.url.hashCode() + element.textOffset.hashCode()) % 10000
+            val hash = (virtualFile.url.hashCode() + element.textOffset.hashCode()).mod(10000)
             return "${virtualFile.nameWithoutExtension}_${element.textOffset}_$hash"
         }
 
