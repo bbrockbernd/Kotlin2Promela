@@ -15,9 +15,7 @@ class CallDLAction (
     callee: FunctionNode,
     override val psiPointer: SmartPsiElementPointer<KtCallExpression>,
 ) : CallWithCalleeFunDLAction(callee) {
-    override val args = mutableListOf<DLArgument>()
-    
-    var returnType: DLValType = DLUnitValType()
+    override val args = mutableMapOf<Int, DLArgument>()
 
     // TODO original implementation created buffered child chan [1]. WHY?
     override fun toProm(indent: Int): String {

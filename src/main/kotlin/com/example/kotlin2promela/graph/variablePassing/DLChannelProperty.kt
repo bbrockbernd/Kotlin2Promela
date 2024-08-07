@@ -7,8 +7,9 @@ import org.jetbrains.kotlin.psi.KtProperty
 class DLChannelProperty(
     override val offset: Int,
     override val file: String,
-    override val psiPointer: SmartPsiElementPointer<KtProperty>?
-) : DLParameter, DLValProvider<DLChannelValType>() {
+    override val psiPointer: SmartPsiElementPointer<KtProperty>?,
+    override val isClassProperty: Boolean
+) : DLPropParam, DLValProvider<DLChannelValType>() {
     
     override fun toProm(indent: Int): String = promRefName
 

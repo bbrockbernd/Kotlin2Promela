@@ -12,7 +12,7 @@ class AsyncCallDLAction(
     receiving: FunctionNode,
     override val psiPointer: SmartPsiElementPointer<KtCallExpression>, 
 ) : CallWithCalleeFunDLAction(receiving) {
-    override val args: MutableList<DLArgument> = mutableListOf()
+    override val args: MutableMap<Int, DLArgument> = mutableMapOf()
     
     // TODO original implementation created buffered child chan [1]. WHY?
     override fun toProm(indent: Int): String = buildString { 

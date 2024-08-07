@@ -10,8 +10,8 @@ class AssignPropertyDLAction(
     override val offset: Int,
     override val performedIn: FunctionNode,
     override val psiPointer: SmartPsiElementPointer<KtProperty>?,
-    var assigning: DLArgument?, 
-    var assignee: DLParameter?
+    var assigning: DLArgument?, // right
+    var assignee: DLPropParam?  // left
 ) : DLAction {
     
     override fun getChildActions(): List<DLAction> {

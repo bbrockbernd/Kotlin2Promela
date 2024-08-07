@@ -7,10 +7,7 @@ import com.intellij.psi.PsiFileSystemItem
 import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiRecursiveElementVisitor
 import com.intellij.usageView.UsageInfo
-import org.jetbrains.kotlin.psi.KtCallExpression
-import org.jetbrains.kotlin.psi.KtFunction
-import org.jetbrains.kotlin.psi.KtNameReferenceExpression
-import org.jetbrains.kotlin.psi.KtValueArgument
+import org.jetbrains.kotlin.psi.*
 
 class MyPsiUtils {
     companion object {
@@ -51,6 +48,11 @@ class MyPsiUtils {
             })
             return foundChildren
         }
+        
+        fun getArgumentIndex(element: PsiElement): Int {
+            val psiCall = MyPsiUtils.findParent(element, { it is KtCallExpression }, { it is KtFile }) as KtCallExpression
+            return psiCall.valueArguments.indexOf(element)
+        }
 
         fun findAllChildren(
             startElement: PsiElement,
@@ -65,6 +67,11 @@ class MyPsiUtils {
             val psiFile = PsiManager.getInstance(project).findFile(file) ?: return listOf()
             return findAllChildren(psiFile) { ElementFilters.isNamedFunction(it) } as List<KtFunction>
         }
+        
+        fun findClassDefinitions(file: VirtualFile, project: Project): List<KtClass> {
+            val psiFile = PsiManager.getInstance(project).findFile(file) ?: return listOf()
+            return findAllChildren(psiFile) { ElementFilters.isClass(it) } as List<KtClass>
+        }
 
         fun getFunForCall(element: KtCallExpression): KtFunction? {
             val callee = element.calleeExpression
@@ -75,6 +82,15 @@ class MyPsiUtils {
             return null
         }
 
+        fun getClassForCall(element: KtCallExpression): KtClass? {
+            val callee = element.calleeExpression
+            if (callee is KtNameReferenceExpression) {
+                val psiClazz = callee.reference?.resolve()
+                if (psiClazz is KtClass) return psiClazz
+            }
+            return null
+        }
+        
         fun getAsyncBuilderLambda(element: KtCallExpression): KtFunction? {
             return element.lambdaArguments.getOrNull(0)?.getLambdaExpression()?.functionLiteral
         }

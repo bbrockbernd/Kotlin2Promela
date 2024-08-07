@@ -1,7 +1,6 @@
 package com.example.kotlin2promela
 
 import com.intellij.psi.PsiElement
-import org.jetbrains.kotlin.nj2k.postProcessing.resolve
 import org.jetbrains.kotlin.psi.*
 
 class ElementFilters {
@@ -9,9 +8,11 @@ class ElementFilters {
         
         fun isNamedFunction(psiElement: PsiElement) = psiElement is KtNamedFunction
         fun isFunction(psiElement: PsiElement) = psiElement is KtFunction
+        fun isClass(psiElement: PsiElement) = psiElement is KtClass
         fun isCall(psiElement: PsiElement) = psiElement is KtCallExpression
         fun isReturn(psiElement: PsiElement) = psiElement is KtReturnExpression
         fun isProperty(psiElement: PsiElement) = psiElement is KtProperty
+        fun isDotQualified(psiElement: PsiElement) = psiElement is KtDotQualifiedExpression
         
         fun runBlockingBuilderDeclaration(psiElement: PsiElement) =
             psiElement is KtNamedFunction && psiElement.fqName?.toString() == "kotlinx.coroutines.runBlocking" 

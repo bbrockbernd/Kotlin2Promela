@@ -2,18 +2,29 @@ package com.example.kotlin2promela.graph
 
 import com.example.kotlin2promela.graph.action.CallWithCalleeFunDLAction
 import com.example.kotlin2promela.graph.action.ChannelInitDLAction
+import com.example.kotlin2promela.graph.action.DLAction
+import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtFunction
 import java.util.*
 
 class DeadlockGraph {
     private val funMap = mutableMapOf<String, FunctionNode>()
     val channelInits = mutableListOf<ChannelInitDLAction>()
+    val channelOperations = mutableListOf<DLAction>() // sends and receives (possible close and cancel would go here as well)
 
 
     fun getOrCreateFunction(func: KtFunction): FunctionNode {
         val id = FunctionNode.generateId(func)
         return funMap.getOrPut(id) {
             val node = FunctionNode(func)
+            node
+        }
+    }
+    
+    fun getOrCreateFunction(clazz: KtClass): FunctionNode {
+        val id = FunctionNode.generateId(clazz)
+        return funMap.getOrPut(id) {
+            val node = FunctionNode(clazz)
             node
         }
     }

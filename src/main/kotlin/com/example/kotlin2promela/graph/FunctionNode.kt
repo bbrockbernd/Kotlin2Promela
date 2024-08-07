@@ -4,20 +4,27 @@ import com.example.kotlin2promela.ElementFilters
 import com.example.kotlin2promela.MyPsiUtils
 import com.example.kotlin2promela.graph.action.*
 import com.example.kotlin2promela.graph.variablePassing.DLChannelParameter
-import com.example.kotlin2promela.graph.variablePassing.DLParameter
+import com.example.kotlin2promela.graph.variablePassing.DLPropParam
 import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLChannelValType
 import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLUnitValType
 import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLValType
 import com.intellij.psi.SmartPsiElementPointer
 import org.jetbrains.kotlin.idea.util.isAnonymousFunction
-import org.jetbrains.kotlin.psi.KtCallExpression
-import org.jetbrains.kotlin.psi.KtFunction
-import org.jetbrains.kotlin.psi.KtReturnExpression
+import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.createSmartPointer
 
 
-class FunctionNode(val info: FunctionInfo, val parameterList: List<DLParameter>, var returnType: DLValType, val psiPointer: SmartPsiElementPointer<KtFunction>): Prom {
-    data class FunctionInfo(val id: String, val fqName: String, val file: String, val offset: Int)
+class FunctionNode(
+    val info: FunctionInfo,
+    val parameterList: List<DLPropParam>,
+    var returnType: DLValType,
+    val psiPointer: SmartPsiElementPointer<KtNamedDeclaration>,
+    val isConstructor: Boolean = false,
+): Prom {
+    var actionList = mutableListOf<DLAction>()
+    var visited = false
+    val implicitParameters = mutableMapOf<Int, DLPropParam>()
+    val calledBy = mutableListOf<CallWithCalleeFunDLAction>()
 
     constructor(function: KtFunction) : this(
         FunctionInfo(generateId(function), extractFqName(function), "file", 0),
@@ -26,10 +33,13 @@ class FunctionNode(val info: FunctionInfo, val parameterList: List<DLParameter>,
         function.createSmartPointer()
     ) 
     
-    var actionList = mutableListOf<DLAction>()
-    var visited = false
-    val implicitParameters = mutableMapOf<Int, DLParameter>()
-    val calledBy = mutableListOf<CallWithCalleeFunDLAction>()
+    constructor(clazz: KtClass) : this(
+        FunctionInfo(generateId(clazz), clazz.name!!, "file", 0),
+        extractParameters(clazz),
+        DLUnitValType(), // return type will be added in linking phase for constructors
+        clazz.createSmartPointer()
+    )
+    
     
     fun getParentFor(dlAction: DLAction): DLAction? = getActions<DLAction>().firstOrNull { it.hasChild(dlAction) }
     fun getChildNodes(): List<FunctionNode> = getCallsToChildNodes().map { it.callee }
@@ -62,19 +72,33 @@ class FunctionNode(val info: FunctionInfo, val parameterList: List<DLParameter>,
 
     companion object {
         fun generateId(function: KtFunction): String {
+            if (function is KtConstructor<*>) {
+                val cls = function.getContainingClassOrObject()
+                if (cls !is KtClass) throw IllegalStateException("Constructor of object..? for file ${function.getContainingFile().name}")
+                return generateId(cls)
+            }
             return "fun_${extractFunName(function)}_${MyPsiUtils.getId(function)!!}" 
         }
-        
+
+        fun generateId(clazz: KtClass): String {
+            val clazzName = clazz.name!!
+            return "prim_constr_${clazzName}_${MyPsiUtils.getId(clazz)!!}"
+        }
         fun extractFqName(function: KtFunction): String = function.fqName?.toString() ?: "lambda" 
         fun extractFunName(function: KtFunction): String {
             if(function.isAnonymousFunction || function.name == "<anonymous>" || function.name == null) return "lambda"
             return function.name!!
         }
         
-        fun extractParameters(function: KtFunction): List<DLParameter> {
+        fun extractParameters(clazz: KtClass): List<DLPropParam> {
+            if (clazz.primaryConstructor == null) return emptyList()
+            return extractParameters(clazz.primaryConstructor!!)
+        }
+        
+        fun extractParameters(function: KtFunction): List<DLPropParam> {
             return function.valueParameters
                 .filter { ElementFilters.isChannelParameter(it)}
-                .map { DLChannelParameter(it.textOffset, it.containingFile.virtualFile.path, it.createSmartPointer())}
+                .map { DLChannelParameter(it.textOffset, it.containingFile.virtualFile.path, it.createSmartPointer(), it.hasValOrVar())}
         }
         
         fun extractReturnType(function: KtFunction): DLValType {
@@ -131,4 +155,6 @@ class FunctionNode(val info: FunctionInfo, val parameterList: List<DLParameter>,
         }
         append("chan ret")
     }
+    
+    data class FunctionInfo(val id: String, val fqName: String, val file: String, val offset: Int)
 }

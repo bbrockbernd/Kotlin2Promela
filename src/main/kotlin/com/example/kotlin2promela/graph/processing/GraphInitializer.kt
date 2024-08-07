@@ -11,6 +11,7 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.createSmartPointer
+import org.jetbrains.kotlin.psi.psiUtil.isAbstract
 
 class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val relevantFiles: List<VirtualFile>) {
     fun intialize() {
@@ -19,13 +20,34 @@ class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val rel
         
         relevantFiles.forEachIndexed { ind, file ->
             println("Handling file $ind/$totalFiles")
+            
+            MyPsiUtils.findClassDefinitions(file, project).forEach { clazz ->
+                if (!clazz.isInterface() && !clazz.isAbstract()) exploreFunctionOrClassDeclaration(clazz)
+            }
+                     
             MyPsiUtils.findFunctionDefinitions(file, project).forEach { fn ->
-                exploreFunctionDeclaration(fn)
+                exploreFunctionOrClassDeclaration(fn)
             }
         }
     }
+    
+    // Starting point for class exploration
+    private fun exploreFunctionOrClassDeclaration(clazz: KtClass): FunctionNode {
+        if (clazz.isInterface() || clazz.isAbstract()) throw IllegalArgumentException("Cannot create function node for abstract class or interface ${clazz.name}")
+        val funNode = dlGraph.getOrCreateFunction(clazz)
+        if (funNode.visited) return funNode
+        funNode.visited = true
+        
+        // add class properties
+        clazz.body?.properties?.forEach { prop ->
+            val dlProp = processPropertyAssignment(prop, funNode)
+            dlProp?.let { funNode.actionList.add(it) }
+        }
+        return funNode
+    }
 
-    private fun exploreFunctionDeclaration(fn: KtFunction): FunctionNode {
+    // Starting point for function exploration
+    private fun exploreFunctionOrClassDeclaration(fn: KtFunction): FunctionNode {
         // init
         val funNode = dlGraph.getOrCreateFunction(fn)
         if (funNode.visited) return funNode
@@ -34,7 +56,7 @@ class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val rel
         // Check all relevant elements in body
         MyPsiUtils.findAllChildren(
             fn.bodyExpression,
-            { ElementFilters.isCall(it) || ElementFilters.isReturn(it) || ElementFilters.isProperty(it)},
+            { ElementFilters.isCall(it) || ElementFilters.isReturn(it) || ElementFilters.isProperty(it) || ElementFilters.isDotQualified(it) },
             { ElementFilters.isFunction(it) },
             pruneOnCondition = true,
             includeStart = true
@@ -48,10 +70,11 @@ class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val rel
         return funNode
     }
     
+    // Explores any psi element
     private fun exploreExpression(expr: PsiElement?, containingFun: FunctionNode): DLAction? {
         val calls = MyPsiUtils.findAllChildren(
             expr,
-            { ElementFilters.isCall(it) },
+            { ElementFilters.isCall(it) || ElementFilters.isDotQualified(it) },
             { ElementFilters.isFunction(it) },
             pruneOnCondition = true,
             includeStart = true
@@ -61,10 +84,10 @@ class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val rel
         // if more calls are made its probably a val bla = if (joe) call() else otherCall()
         // we do not support this but treat it as if they are all called but do not assign
         if (calls.size == 1) {
-            return processExpression(calls[0] as KtCallExpression, containingFun)
+            return processExpression(calls[0] as KtExpression, containingFun)
         }
         calls.forEach { call -> 
-            val action = processExpression(call as KtCallExpression, containingFun)
+            val action = processExpression(call as KtExpression, containingFun)
             action?.let { containingFun.actionList.add(it) }
         }
         return null
@@ -77,8 +100,28 @@ class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val rel
             ElementFilters.isChannelInit(expr) -> processChannelInit(expr as KtCallExpression, containingFun)
             ElementFilters.isReturn(expr) -> processReturn(expr as KtReturnExpression, containingFun)
             ElementFilters.isProperty(expr) -> processPropertyAssignment(expr as KtProperty, containingFun)
+            ElementFilters.isDotQualified(expr) -> processDotQualified(expr as KtDotQualifiedExpression, containingFun)
             else -> processCall(expr as KtCallExpression, containingFun)
         }
+    }
+    
+    private fun processDotQualified(dotQ: KtDotQualifiedExpression, containingFun: FunctionNode): DLAction? {
+        val receiverAction = exploreExpression(dotQ.receiverExpression, containingFun)
+        
+        val selector = dotQ.selectorExpression
+        val action = if (selector is KtCallExpression) {
+            val callAction = processCall(selector, containingFun) as DLCallWithArguments
+            receiverAction?.let { callAction.args[-1] = DLActionArgument(it) }
+            callAction
+        } else if (selector is KtNameReferenceExpression) {
+            val receiverArgument = receiverAction?.let { DLActionArgument(it) }
+            val propAccessAction = DLPropertyAccessAction(dotQ.containingFile.virtualFile.path, selector.textOffset, containingFun, selector.createSmartPointer(), selector.getReferencedName(), receiverArgument)
+            propAccessAction
+        } else {
+            throw IllegalStateException("Expected class prop selection or functino call but is something else for file " +
+                    "${dotQ.containingFile.virtualFile.path} and element text ${dotQ.selectorExpression?.text}")
+        }
+        return action
     }
     
     private fun processPropertyAssignment(prop: KtProperty, containingFun: FunctionNode): DLAction? {
@@ -107,7 +150,7 @@ class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val rel
     private fun processAsyncCall(call: KtCallExpression, callerFun: FunctionNode): DLAction? {
         val ktFunction = MyPsiUtils.getAsyncBuilderLambda(call) ?: return null
         if (relevantFiles.contains(ktFunction.containingFile.virtualFile)) {
-            val calledFunNode = exploreFunctionDeclaration(ktFunction)
+            val calledFunNode = exploreFunctionOrClassDeclaration(ktFunction)
             return AsyncCallDLAction(
                 call.containingFile.virtualFile.path,
                 call.textOffset,
@@ -121,29 +164,37 @@ class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val rel
 
     private fun processCall(call: KtCallExpression, callerFun: FunctionNode): DLAction? {
         val ktFunction = MyPsiUtils.getFunForCall(call) 
+        val ktClass = MyPsiUtils.getClassForCall(call)
         // Create in or out of scope callAction
         val callAction = if (ktFunction != null && relevantFiles.contains(ktFunction.containingFile.virtualFile)) {
-            val calledFunNode = exploreFunctionDeclaration(ktFunction)
+            val calledFunNode = exploreFunctionOrClassDeclaration(ktFunction)
             CallDLAction(call.containingFile.virtualFile.path, call.textOffset, callerFun, calledFunNode, call.createSmartPointer())
         } else if (ElementFilters.isSendCall(call)) {
-            ChannelSendDLAction(call.containingFile.virtualFile.path, call.textOffset, callerFun, call.createSmartPointer())
+            val send = ChannelSendDLAction(call.containingFile.virtualFile.path, call.textOffset, callerFun, call.createSmartPointer())
+            dlGraph.channelOperations.add(send)
+            send
         } else if (ElementFilters.isReceiveCall(call)) {
-            ChannelRecvDLAction(call.containingFile.virtualFile.path, call.textOffset, callerFun, call.createSmartPointer())
+            val receive = ChannelRecvDLAction(call.containingFile.virtualFile.path, call.textOffset, callerFun, call.createSmartPointer())
+            dlGraph.channelOperations.add(receive)
+            receive
+        } else if (ktClass != null && relevantFiles.contains(ktClass.containingFile.virtualFile)) {
+            val calledFunNode = exploreFunctionOrClassDeclaration(ktClass)
+            CallDLAction(call.containingFile.virtualFile.path, call.textOffset, callerFun, calledFunNode, call.createSmartPointer())
         } else {
             OutOfScopeCallDLAction(call.containingFile.virtualFile.path, call.textOffset, callerFun, call.createSmartPointer())
         }
 
         // Process arguments
-        call.valueArguments.forEach { arg ->
+        call.valueArguments.forEachIndexed { index, arg ->
 
             // TODO fix: Hack for lambda arguments (inline maybe??)
             if (arg is KtLambdaArgument) {
-                val receivingFun = exploreFunctionDeclaration(arg.getLambdaExpression()!!.functionLiteral)
+                val receivingFun = exploreFunctionOrClassDeclaration(arg.getLambdaExpression()!!.functionLiteral)
                 val lamCall =
                     CallDLAction(arg.containingFile.virtualFile.path, arg.textOffset, callerFun, receivingFun, call.createSmartPointer())
-                callAction.args.add(DLActionArgument(lamCall))
+                callAction.args[index] = DLActionArgument(lamCall)
             } else {
-                exploreExpression(arg, callerFun)?.let{ callAction.args.add(DLActionArgument(it)) }
+                exploreExpression(arg, callerFun)?.let{ callAction.args[index] = DLActionArgument(it) }
             }
         }
         return callAction

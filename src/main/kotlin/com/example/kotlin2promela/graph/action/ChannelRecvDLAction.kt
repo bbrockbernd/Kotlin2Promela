@@ -13,8 +13,8 @@ class ChannelRecvDLAction(
     override val offset: Int,
     override val performedIn: FunctionNode,
     override val psiPointer: SmartPsiElementPointer<KtCallExpression>
-) : DLCallWithArguments, DLValConsumer<DLChannelValType>() {
-    override val args: MutableList<DLArgument> = mutableListOf()
+) : DLCallWithArguments, DLValConsumer() {
+    override val args = mutableMapOf<Int, DLArgument>()
     override val implArgs: MutableMap<Int, DLPassingArgument> = mutableMapOf()
     override fun toProm(indent: Int): String = 
         buildString { appendLineIndented(indent, "${consumesFrom!!.promRefName}?0") }

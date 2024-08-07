@@ -12,7 +12,7 @@ class OutOfScopeCallDLAction(
     override val performedIn: FunctionNode,
     override val psiPointer: SmartPsiElementPointer<KtCallExpression>
 ) : DLCallWithArguments {
-    override val args = mutableListOf<DLArgument>()
+    override val args = mutableMapOf<Int, DLArgument>()
     override val implArgs: MutableMap<Int, DLPassingArgument> = mutableMapOf()
     override fun toProm(indent: Int): String {
         return ""

@@ -33,7 +33,7 @@ class GraphChannelLinker(val dlGraph: DeadlockGraph) {
                     // if call is party of property -> Link property
                     val callParent = call.getParent()
                     if (callParent is AssignPropertyDLAction) {
-                        val provider = DLChannelProperty(callParent.offset, callParent.file, callParent.psiPointer)
+                        val provider = DLChannelProperty(callParent.offset, callParent.file, callParent.psiPointer, false)
                         callParent.assignee = provider
                         val ktProp: KtProperty = callParent.psiPointer!!.element!!
                         ReferencesSearch.search(ktProp).findAll().forEach { usage ->
@@ -52,7 +52,7 @@ class GraphChannelLinker(val dlGraph: DeadlockGraph) {
         dlGraph.channelInits.forEach { chanInit ->
             if (chanInit.getParent() is AssignPropertyDLAction) {
                 val chanPropAssignment = chanInit.getParent() as AssignPropertyDLAction
-                val prop = DLChannelProperty(chanPropAssignment.offset, chanPropAssignment.file, chanPropAssignment.psiPointer)
+                val prop = DLChannelProperty(chanPropAssignment.offset, chanPropAssignment.file, chanPropAssignment.psiPointer, false)
                 chanPropAssignment.assignee = prop
                 
                 val psiElement = chanPropAssignment.psiPointer?.element!!
@@ -102,7 +102,7 @@ class GraphChannelLinker(val dlGraph: DeadlockGraph) {
             }
 
             path.first().implArgs.computeIfAbsent(offset) { _ ->
-                DLPassingArgument(offset, DLValConsumer.createAndLinkChannelConsumer(chanProd))
+                DLPassingArgument(DLValConsumer.createAndLinkChannelConsumer(chanProd))
             }
 
             // Hack use chaninit textOffset to differentiate
@@ -110,23 +110,20 @@ class GraphChannelLinker(val dlGraph: DeadlockGraph) {
                 DLChannelParameter(
                     offset,
                     usage.containingFile.virtualFile.path,
-                    null
+                    null,
+                    false
                 )
             }
 
             for (i in 1..path.lastIndex) {
                 val param = path[i].performedIn.implicitParameters[offset] as DLChannelParameter
-                path[i].implArgs.computeIfAbsent(offset) {
-                    DLPassingArgument(
-                        offset,
-                        DLValConsumer.createAndLinkChannelConsumer(param)
-                    )
-                }
+                path[i].implArgs.computeIfAbsent(offset) { DLPassingArgument(DLValConsumer.createAndLinkChannelConsumer(param)) }
                 path[i].callee.implicitParameters.computeIfAbsent(offset) { _ ->
                     DLChannelParameter(
                         offset,
                         usage.containingFile.virtualFile.path,
-                        null
+                        null,
+                        false
                     )
                 }
             }
@@ -138,16 +135,12 @@ class GraphChannelLinker(val dlGraph: DeadlockGraph) {
         if (ElementFilters.isUsageValueArgument(usage)) {
             val psiCall = MyPsiUtils.findParent(usage, { it is KtCallExpression }, { it is KtFile }) as KtCallExpression
             val dlCall = usageFun.getCallFor(psiCall)
-            dlCall.args.add(
-                DLPassingArgument(
-                    usage.textOffset,
-                    DLValConsumer.createAndLinkChannelConsumer(chanProducer)
-                )
-            )
+            val argIndex = MyPsiUtils.getArgumentIndex(usage)
+            dlCall.args[argIndex] = DLPassingArgument(DLValConsumer.createAndLinkChannelConsumer(chanProducer))
         } else if (ElementFilters.isReturnUsage(usage)) {
             val psiReturn = MyPsiUtils.findParent(usage, { it is KtReturnExpression }, { it is KtFile }) as KtReturnExpression
             val dlReturn = usageFun.getReturnFor(psiReturn)
-            dlReturn.returning = DLPassingArgument(usage.textOffset, DLValConsumer.createAndLinkChannelConsumer(chanProducer))
+            dlReturn.returning = DLPassingArgument(DLValConsumer.createAndLinkChannelConsumer(chanProducer))
         } else if (ElementFilters.isSendUsage(usage)) {
             val dotQual = usage.parent as KtDotQualifiedExpression
             val callExpr = dotQual.selectorExpression as KtCallExpression

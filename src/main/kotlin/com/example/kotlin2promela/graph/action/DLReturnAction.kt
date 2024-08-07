@@ -33,8 +33,8 @@ class DLReturnAction(
         }
         
         // Create prop to receive value in and return
-        val newProp = DLChannelProperty(actionToReturn.offset, actionToReturn.file, null)
-        val passingArgument = DLPassingArgument(actionToReturn.offset, DLValConsumer.createAndLinkChannelConsumer(newProp))
+        val newProp = DLChannelProperty(actionToReturn.offset, actionToReturn.file, null, false)
+        val passingArgument = DLPassingArgument(DLValConsumer.createAndLinkChannelConsumer(newProp))
         val propAssignAction = AssignPropertyDLAction(actionToReturn.file, actionToReturn.offset, actionToReturn.performedIn, null, returning, newProp)
         returning = passingArgument
         actionList.add(propAssignAction)
