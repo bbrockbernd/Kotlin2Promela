@@ -1,6 +1,7 @@
 package com.example.kotlin2promela.graph.action
 
 import com.example.kotlin2promela.graph.variablePassing.*
+import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLChannelValType
 import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLUnitValType
 
 interface DLCallWithArguments : DLAction {
@@ -23,7 +24,7 @@ interface DLCallWithArguments : DLAction {
                 
                 // variable passing for non unit call action argument
                 if (actionPerformedInArgument is CallDLAction && actionPerformedInArgument.returnType !is DLUnitValType) {
-                    val newProp = DLChannelProperty(actionPerformedInArgument.offset, actionPerformedInArgument.file, null, false)
+                    val newProp = DLProperty(actionPerformedInArgument.offset, actionPerformedInArgument.file, null, false, DLChannelValType())
                     val passingArgument = DLPassingArgument(DLValConsumer.createAndLinkChannelConsumer(newProp))
                     args[indexKey] = passingArgument
                     val propAssignAction = AssignPropertyDLAction(actionPerformedInArgument.file, actionPerformedInArgument.offset,

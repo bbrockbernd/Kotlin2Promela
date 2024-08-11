@@ -2,14 +2,15 @@ package com.example.kotlin2promela.graph.action
 
 import com.example.kotlin2promela.graph.FunctionNode
 import com.example.kotlin2promela.graph.variablePassing.*
-import com.intellij.psi.PsiElement
+import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLChannelValType
 import com.intellij.psi.SmartPsiElementPointer
+import org.jetbrains.kotlin.psi.KtReturnExpression
 
 class DLReturnAction(
     override val file: String,
     override val offset: Int,
     override val performedIn: FunctionNode,
-    override val psiPointer: SmartPsiElementPointer<out PsiElement>,
+    override val psiPointer: SmartPsiElementPointer<KtReturnExpression>,
     var returning: DLArgument?
 ) : DLAction {
     override fun getChildActions(): List<DLAction> {
@@ -33,7 +34,7 @@ class DLReturnAction(
         }
         
         // Create prop to receive value in and return
-        val newProp = DLChannelProperty(actionToReturn.offset, actionToReturn.file, null, false)
+        val newProp = DLProperty(actionToReturn.offset, actionToReturn.file, null, false, DLChannelValType())
         val passingArgument = DLPassingArgument(DLValConsumer.createAndLinkChannelConsumer(newProp))
         val propAssignAction = AssignPropertyDLAction(actionToReturn.file, actionToReturn.offset, actionToReturn.performedIn, null, returning, newProp)
         returning = passingArgument

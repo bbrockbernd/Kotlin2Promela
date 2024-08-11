@@ -3,8 +3,7 @@ package com.example.kotlin2promela.graph
 import com.example.kotlin2promela.ElementFilters
 import com.example.kotlin2promela.MyPsiUtils
 import com.example.kotlin2promela.graph.action.*
-import com.example.kotlin2promela.graph.variablePassing.DLChannelParameter
-import com.example.kotlin2promela.graph.variablePassing.DLPropParam
+import com.example.kotlin2promela.graph.variablePassing.DLParameter
 import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLChannelValType
 import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLUnitValType
 import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLValType
@@ -16,14 +15,14 @@ import org.jetbrains.kotlin.psi.psiUtil.createSmartPointer
 
 class FunctionNode(
     val info: FunctionInfo,
-    val parameterList: List<DLPropParam>,
+    val importantParameters: MutableMap<Int, DLParameter>,
     var returnType: DLValType,
     val psiPointer: SmartPsiElementPointer<KtNamedDeclaration>,
     val isConstructor: Boolean = false,
 ): Prom {
     var actionList = mutableListOf<DLAction>()
     var visited = false
-    val implicitParameters = mutableMapOf<Int, DLPropParam>()
+    val implicitParameters = mutableMapOf<Int, DLParameter>()
     val calledBy = mutableListOf<CallWithCalleeFunDLAction>()
 
     constructor(function: KtFunction) : this(
@@ -37,7 +36,8 @@ class FunctionNode(
         FunctionInfo(generateId(clazz), clazz.name!!, "file", 0),
         extractParameters(clazz),
         DLUnitValType(), // return type will be added in linking phase for constructors
-        clazz.createSmartPointer()
+        clazz.createSmartPointer(),
+        true
     )
     
     
@@ -51,6 +51,7 @@ class FunctionNode(
     fun getCallsToChildNodes() = getActions<CallWithCalleeFunDLAction>()
     fun getChanInits() = getActions<ChannelInitDLAction>() 
     fun getReturns() = getActions<DLReturnAction>()
+    fun getPropertyAssign() = getActions<AssignPropertyDLAction>()
     fun getCallsWithArguments() = getActions<DLCallWithArguments>()
 
     override fun equals(other: Any?): Boolean {
@@ -60,6 +61,10 @@ class FunctionNode(
     
     fun getCallFor(element: KtCallExpression): DLCallWithArguments {
         return getCallsWithArguments().first { it.offset == element.textOffset }
+    }
+    
+    fun getPropertyAssignFor(element: KtProperty): AssignPropertyDLAction {
+        return getPropertyAssign().first { it.offset == element.textOffset }
     }
     
     fun getReturnFor(element: KtReturnExpression): DLReturnAction {
@@ -90,15 +95,18 @@ class FunctionNode(
             return function.name!!
         }
         
-        fun extractParameters(clazz: KtClass): List<DLPropParam> {
-            if (clazz.primaryConstructor == null) return emptyList()
+        fun extractParameters(clazz: KtClass): MutableMap<Int, DLParameter>  {
+            if (clazz.primaryConstructor == null) return mutableMapOf()
             return extractParameters(clazz.primaryConstructor!!)
         }
         
-        fun extractParameters(function: KtFunction): List<DLPropParam> {
-            return function.valueParameters
-                .filter { ElementFilters.isChannelParameter(it)}
-                .map { DLChannelParameter(it.textOffset, it.containingFile.virtualFile.path, it.createSmartPointer(), it.hasValOrVar())}
+        fun extractParameters(function: KtFunction): MutableMap<Int, DLParameter> {
+            val map = mutableMapOf<Int, DLParameter>()
+            function.valueParameters.forEachIndexed { ind, param -> 
+                if (ElementFilters.isChannelParameter(param)) 
+                    map[ind] = DLParameter(param.textOffset, param.containingFile.virtualFile.path, param.createSmartPointer(), param.hasValOrVar(), DLChannelValType())
+            }
+            return map
         }
         
         fun extractReturnType(function: KtFunction): DLValType {
@@ -149,7 +157,7 @@ class FunctionNode(
     
     
     private fun paramListProm(): String = buildString {
-        val myPromParams = implicitParameters.toSortedMap().values + parameterList
+        val myPromParams = implicitParameters.toSortedMap().values + importantParameters.keys.sorted().map { importantParameters[it]!! }
         myPromParams.forEach { param ->
             append(param.toProm(), "; ")
         }

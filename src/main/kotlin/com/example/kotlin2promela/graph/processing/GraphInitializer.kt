@@ -25,9 +25,9 @@ class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val rel
                 if (!clazz.isInterface() && !clazz.isAbstract()) exploreFunctionOrClassDeclaration(clazz)
             }
                      
-            MyPsiUtils.findFunctionDefinitions(file, project).forEach { fn ->
-                exploreFunctionOrClassDeclaration(fn)
-            }
+            MyPsiUtils.findFunctionDefinitions(file, project)
+                .filter { it !is KtConstructor<*> }
+                .forEach { exploreFunctionOrClassDeclaration(it) }
         }
     }
     
@@ -115,7 +115,7 @@ class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val rel
             callAction
         } else if (selector is KtNameReferenceExpression) {
             val receiverArgument = receiverAction?.let { DLActionArgument(it) }
-            val propAccessAction = DLPropertyAccessAction(dotQ.containingFile.virtualFile.path, selector.textOffset, containingFun, selector.createSmartPointer(), selector.getReferencedName(), receiverArgument)
+            val propAccessAction = DLPropertyAccessAction(dotQ.containingFile.virtualFile.path, selector.textOffset, containingFun, dotQ.createSmartPointer(), selector.getReferencedName(), receiverArgument)
             propAccessAction
         } else {
             throw IllegalStateException("Expected class prop selection or functino call but is something else for file " +
@@ -186,7 +186,6 @@ class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val rel
 
         // Process arguments
         call.valueArguments.forEachIndexed { index, arg ->
-
             // TODO fix: Hack for lambda arguments (inline maybe??)
             if (arg is KtLambdaArgument) {
                 val receivingFun = exploreFunctionOrClassDeclaration(arg.getLambdaExpression()!!.functionLiteral)

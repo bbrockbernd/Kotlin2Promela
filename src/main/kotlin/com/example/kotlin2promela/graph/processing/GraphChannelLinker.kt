@@ -33,7 +33,7 @@ class GraphChannelLinker(val dlGraph: DeadlockGraph) {
                     // if call is party of property -> Link property
                     val callParent = call.getParent()
                     if (callParent is AssignPropertyDLAction) {
-                        val provider = DLChannelProperty(callParent.offset, callParent.file, callParent.psiPointer, false)
+                        val provider = DLProperty(callParent.offset, callParent.file, callParent.psiPointer, false, DLChannelValType())
                         callParent.assignee = provider
                         val ktProp: KtProperty = callParent.psiPointer!!.element!!
                         ReferencesSearch.search(ktProp).findAll().forEach { usage ->
@@ -52,7 +52,7 @@ class GraphChannelLinker(val dlGraph: DeadlockGraph) {
         dlGraph.channelInits.forEach { chanInit ->
             if (chanInit.getParent() is AssignPropertyDLAction) {
                 val chanPropAssignment = chanInit.getParent() as AssignPropertyDLAction
-                val prop = DLChannelProperty(chanPropAssignment.offset, chanPropAssignment.file, chanPropAssignment.psiPointer, false)
+                val prop = DLProperty(chanPropAssignment.offset, chanPropAssignment.file, chanPropAssignment.psiPointer, false, DLChannelValType())
                 chanPropAssignment.assignee = prop
                 
                 val psiElement = chanPropAssignment.psiPointer?.element!!
@@ -73,7 +73,7 @@ class GraphChannelLinker(val dlGraph: DeadlockGraph) {
     
     private fun linkParams() {
         dlGraph.getFunctions().forEach { fn ->
-            fn.parameterList.filterIsInstance<DLChannelParameter>().forEach { chanParam ->
+            fn.importantParameters.values.filterIsInstance<DLParameter>().forEach { chanParam ->
                 val psiElement = chanParam.psiPointer?.element!!
                 ReferencesSearch.search(psiElement).findAll().forEach { usage ->
                     if (usage.element !is KtNameReferenceExpression) {
@@ -87,7 +87,7 @@ class GraphChannelLinker(val dlGraph: DeadlockGraph) {
 
     private fun processUsage(
         usage: KtNameReferenceExpression,
-        chanProd: DLValProvider<DLChannelValType>,
+        chanProd: DLValProvider,
         prodFun: FunctionNode,
         offset: Int
     ) {
@@ -107,29 +107,30 @@ class GraphChannelLinker(val dlGraph: DeadlockGraph) {
 
             // Hack use chaninit textOffset to differentiate
             path.first().callee.implicitParameters.computeIfAbsent(offset) {
-                DLChannelParameter(
+                DLParameter(
                     offset,
                     usage.containingFile.virtualFile.path,
                     null,
-                    false
+                    false,
+                    DLChannelValType()
                 )
             }
 
             for (i in 1..path.lastIndex) {
-                val param = path[i].performedIn.implicitParameters[offset] as DLChannelParameter
+                val param = path[i].performedIn.implicitParameters[offset] as DLParameter
                 path[i].implArgs.computeIfAbsent(offset) { DLPassingArgument(DLValConsumer.createAndLinkChannelConsumer(param)) }
                 path[i].callee.implicitParameters.computeIfAbsent(offset) { _ ->
-                    DLChannelParameter(
+                    DLParameter(
                         offset,
                         usage.containingFile.virtualFile.path,
                         null,
-                        false
+                        false,
+                        DLChannelValType()
                     )
                 }
             }
-            path.last().callee.implicitParameters[offset] as DLChannelParameter
+            path.last().callee.implicitParameters[offset] as DLParameter
         } else chanProd
-
 
 
         if (ElementFilters.isUsageValueArgument(usage)) {

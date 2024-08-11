@@ -2,9 +2,6 @@ package com.example.kotlin2promela.graph.action
 
 import com.example.kotlin2promela.graph.FunctionNode
 import com.example.kotlin2promela.graph.variablePassing.DLArgument
-import com.example.kotlin2promela.graph.variablePassing.DLValProvider
-import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLUnitValType
-import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLValType
 import com.intellij.psi.SmartPsiElementPointer
 import org.jetbrains.kotlin.psi.KtCallExpression
 

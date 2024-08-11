@@ -6,7 +6,6 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFileSystemItem
 import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiRecursiveElementVisitor
-import com.intellij.usageView.UsageInfo
 import org.jetbrains.kotlin.psi.*
 
 class MyPsiUtils {
@@ -50,10 +49,15 @@ class MyPsiUtils {
         }
         
         fun getArgumentIndex(element: PsiElement): Int {
-            val psiCall = MyPsiUtils.findParent(element, { it is KtCallExpression }, { it is KtFile }) as KtCallExpression
-            return psiCall.valueArguments.indexOf(element)
+            val argList = findParent(element, { it is KtValueArgumentList }, { it is KtFile }) as KtCallExpression
+            return argList.valueArguments.indexOf(element)
         }
 
+        fun getParameterIndex(element: PsiElement): Int {
+            val paramList = findParent(element, { it is KtParameterList }, { it is KtFile }) as KtCallExpression
+            return paramList.valueArguments.indexOf(element)
+        }
+        
         fun findAllChildren(
             startElement: PsiElement,
             pruneOnCondition: Boolean = false,

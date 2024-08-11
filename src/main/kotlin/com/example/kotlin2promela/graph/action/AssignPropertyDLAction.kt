@@ -11,7 +11,7 @@ class AssignPropertyDLAction(
     override val performedIn: FunctionNode,
     override val psiPointer: SmartPsiElementPointer<KtProperty>?,
     var assigning: DLArgument?, // right
-    var assignee: DLPropParam?  // left
+    var assignee: DLProperty?,  // left
 ) : DLAction {
     
     override fun getChildActions(): List<DLAction> {
@@ -31,25 +31,25 @@ class AssignPropertyDLAction(
         // TODO check and do something for channel init assignings
         
         // Channel init (constructor) is assigned to channel property -> val a = Channel<>()
-        if (assignee is DLChannelProperty && assigning is DLActionArgument && (assigning as DLActionArgument).action is ChannelInitDLAction) {
+        if (assignee is DLProperty && assigning is DLActionArgument && (assigning as DLActionArgument).action is ChannelInitDLAction) {
             val chanInitAction = (assigning as DLActionArgument).action as ChannelInitDLAction
-            val prop = assignee as DLChannelProperty
+            val prop = assignee as DLProperty
             appendLineIndented(indent, "chan ${prop.promRefName}")
             appendLineIndented(indent, "new_${chanInitAction.globalRefName}(${prop.promRefName})")
         }
             
         // return from call is assigned to channel property -> val a = getChannel()
-        else if (assignee is DLChannelProperty && assigning is DLActionArgument && (assigning as DLActionArgument).action is CallDLAction) {
+        else if (assignee is DLProperty && assigning is DLActionArgument && (assigning as DLActionArgument).action is CallDLAction) {
             val callAction = (assigning as DLActionArgument).action as CallDLAction
-            val prop = assignee as DLChannelProperty
+            val prop = assignee as DLProperty
             appendLineIndented(indent, "chan ${prop.promRefName}")
             append(callAction.toProm(indent, prop.promRefName))
         } 
             
         //Property is assigned to property -> val a: Channel = b
-        else if (assignee is DLChannelProperty && assigning is DLPassingArgument) {
+        else if (assignee is DLProperty && assigning is DLPassingArgument) {
             val provider = (assigning as DLPassingArgument).consumer.consumesFrom
-            val prop = assignee as DLChannelProperty
+            val prop = assignee as DLProperty
             appendLineIndented(indent, "chan ${prop.promRefName} = ${provider!!.promRefName}")
         }
     }

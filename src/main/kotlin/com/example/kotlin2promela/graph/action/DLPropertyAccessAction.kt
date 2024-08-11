@@ -2,14 +2,14 @@ package com.example.kotlin2promela.graph.action
 
 import com.example.kotlin2promela.graph.FunctionNode
 import com.example.kotlin2promela.graph.variablePassing.DLArgument
-import com.intellij.psi.PsiElement
 import com.intellij.psi.SmartPsiElementPointer
+import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 
 class DLPropertyAccessAction(
     override val file: String,
     override val offset: Int,
     override val performedIn: FunctionNode,
-    override val psiPointer: SmartPsiElementPointer<out PsiElement>?,
+    override val psiPointer: SmartPsiElementPointer<KtDotQualifiedExpression>?,
     val propertyName: String,
     var obj: DLArgument?
 ) : DLAction {

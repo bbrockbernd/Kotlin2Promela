@@ -10,7 +10,7 @@ class GraphPruner(private val dlGraph: DeadlockGraph) {
         println("----PRUNING----")
         // Remove calls that do not pass concurrency primitives
         dlGraph.getFunctions().forEach { fn -> 
-            if (fn.parameterList.isEmpty() && fn.implicitParameters.isEmpty() && fn.returnType is DLUnitValType) {
+            if (fn.importantParameters.isEmpty() && fn.implicitParameters.isEmpty() && fn.returnType is DLUnitValType) {
                 fn.calledBy.forEach { call -> 
                     if (!call.performedIn.actionList.remove(call)) {
                        val propAss = call.performedIn.actionList
