@@ -112,7 +112,7 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
             // insert consumer and resolve origin
             val psiArg = getPsiRefForArg()
             val origin = psiArg.reference?.resolve() as KtNamedDeclaration
-            if (origin is KtProperty && origin.isMember || origin is KtParameter && origin.hasValOrVar()) {
+            if ((origin is KtProperty && origin.isMember || origin is KtParameter && origin.hasValOrVar()) && !action.performedIn.isConstructor) {
                 
                 // Setup self consumer and prop access
                 val selfConsumer = DLValConsumer()

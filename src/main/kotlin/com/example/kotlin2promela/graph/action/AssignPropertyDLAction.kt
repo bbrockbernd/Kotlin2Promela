@@ -28,8 +28,6 @@ class AssignPropertyDLAction(
     }
 
     override fun toProm(indent: Int): String = buildString {
-        // TODO check and do something for channel init assignings
-        
         // Channel init (constructor) is assigned to channel property -> val a = Channel<>()
         if (assignee is DLProperty && assigning is DLActionArgument && (assigning as DLActionArgument).action is ChannelInitDLAction) {
             val chanInitAction = (assigning as DLActionArgument).action as ChannelInitDLAction
@@ -50,7 +48,13 @@ class AssignPropertyDLAction(
         else if (assignee is DLProperty && assigning is DLActionArgument && (assigning as DLActionArgument).action is DLPropertyAccessAction) {
             val propAccessAction = (assigning as DLActionArgument).action as DLPropertyAccessAction
             val prop = assignee as DLProperty
-            appendLineIndented(indent, "${prop.type.promType()} ${prop.promRefName} = ${propAccessAction.toProm(indent)}")
+            appendLineIndented(indent, "${prop.type.promType()} ${prop.promRefName}")
+            
+            prop.type.getAllPrimitivePaths()
+                .map{if (it.isNotEmpty()) ".$it" else it}
+                .forEach {
+                    appendLineIndented(indent, "${prop.promRefName}$it = ${propAccessAction.toProm(indent)}$it")
+            }
         }
             
         //Property is assigned to property -> val a: Channel = b

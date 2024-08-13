@@ -155,7 +155,11 @@ class FunctionNode(
         if (isConstructor) {
             appendLineIndented(1, "${returnType.promType()} obj")
             (returnType as? DLStruct)?.propertyConsumers?.forEach { (propName, consumer) -> 
-                appendLineIndented(1, "obj.$propName = ${consumer.consumesFrom!!.promRefName}")
+                consumer.consumesFrom!!.type.getAllPrimitivePaths()
+                    .map{if (it.isNotEmpty()) ".$it" else it}
+                    .forEach {
+                        appendLineIndented(1, "obj.$propName$it = ${consumer.consumesFrom!!.promRefName}$it")
+                    }
             }
             appendLineIndented(1, "ret!obj")
         }
