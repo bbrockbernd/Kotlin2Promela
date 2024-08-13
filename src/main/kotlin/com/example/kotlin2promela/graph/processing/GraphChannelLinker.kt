@@ -147,15 +147,13 @@ class GraphChannelLinker(val dlGraph: DeadlockGraph) {
             val callExpr = dotQual.selectorExpression as KtCallExpression
             val dlCall = usageFun.getCallFor(callExpr)
             if (dlCall !is ChannelSendDLAction) throw IllegalStateException("Expected channel send call")
-            dlCall.consumesFrom = chanProducer
-            chanProducer.producesFor.add(dlCall)
+            dlCall.args[-1] = DLPassingArgument(DLValConsumer.createAndLinkChannelConsumer(chanProducer))
         } else if (ElementFilters.isReceiveUsage(usage)) {
             val dotQual = usage.parent as KtDotQualifiedExpression
             val callExpr = dotQual.selectorExpression as KtCallExpression
             val dlCall = usageFun.getCallFor(callExpr)
             if (dlCall !is ChannelRecvDLAction) throw IllegalStateException("Expected channel receive call")
-            dlCall.consumesFrom = chanProducer
-            chanProducer.producesFor.add(dlCall)
+            dlCall.args[-1] = DLPassingArgument(DLValConsumer.createAndLinkChannelConsumer(chanProducer))
         }
     }
 }

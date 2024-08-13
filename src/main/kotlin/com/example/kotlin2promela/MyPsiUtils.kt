@@ -54,8 +54,8 @@ class MyPsiUtils {
         }
 
         fun getParameterIndex(element: PsiElement): Int {
-            val paramList = findParent(element, { it is KtParameterList }, { it is KtFile }) as KtCallExpression
-            return paramList.valueArguments.indexOf(element)
+            val paramList = findParent(element, { it is KtParameterList }, { it is KtFile }) as KtParameterList
+            return paramList.parameters.indexOf(element)
         }
         
         fun findAllChildren(

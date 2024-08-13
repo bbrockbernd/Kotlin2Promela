@@ -1,6 +1,8 @@
 package com.example.kotlin2promela.graph
 
 import com.example.kotlin2promela.graph.action.ChannelInitDLAction
+import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLChannelValType
+import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLStruct
 
 class ModelGenerator(private val dlGraph: DeadlockGraph) {
     
@@ -10,6 +12,16 @@ class ModelGenerator(private val dlGraph: DeadlockGraph) {
     fun generateForEntryPoint(fn: FunctionNode): String = buildString {   
         exploreFun(fn)
         collectChannels()
+        
+        funSet.filter {it.isConstructor} 
+            .forEach { 
+                appendLine("/* class ${(it.returnType as DLStruct).fqName} */")
+                appendLine("typedef ${it.returnType.promType()} {")
+                (it.returnType as DLStruct).propertyConsumers.forEach { (name, consumer) ->
+                    appendLine("    ${consumer.consumesFrom!!.type.promType()} $name")
+                }
+                appendLine("}")
+            }
         
         chanSet.forEach{
             append(it.promGlobal(4))

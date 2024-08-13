@@ -5,6 +5,7 @@ import com.example.kotlin2promela.MyPsiUtils
 import com.example.kotlin2promela.graph.action.*
 import com.example.kotlin2promela.graph.variablePassing.DLParameter
 import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLChannelValType
+import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLStruct
 import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLUnitValType
 import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLValType
 import com.intellij.psi.SmartPsiElementPointer
@@ -50,6 +51,7 @@ class FunctionNode(
     
     fun getCallsToChildNodes() = getActions<CallWithCalleeFunDLAction>()
     fun getChanInits() = getActions<ChannelInitDLAction>() 
+    fun getChanOperations() = getActions<ChannelRecvDLAction>() + getActions<ChannelSendDLAction>()
     fun getReturns() = getActions<DLReturnAction>()
     fun getPropertyAssign() = getActions<AssignPropertyDLAction>()
     fun getCallsWithArguments() = getActions<DLCallWithArguments>()
@@ -131,14 +133,15 @@ class FunctionNode(
      */
     override fun toProm(indent: Int): String = buildString { 
         // Function comment and signature
-        appendLine("/* function: ${info.fqName} */")
+        appendLine("/* ${if (isConstructor) "constructor" else "function"}: ${info.fqName} */")
         appendLine("proctype ${promRefName()}(${paramListProm()}) {")
         
         // Return channels
         val returnChannelActions = getCallsToChildNodes()
         if (returnChannelActions.isNotEmpty()) appendLineIndented(1, "/* Function call return channels */")
-        returnChannelActions
-            .forEach { appendLineIndented(1, "chan child_${it.offset} = [0] of {int}") }
+        returnChannelActions.forEach { 
+            appendLineIndented(1, "chan child_${it.offset} = [0] of {${it.returnType.promType()}}") 
+        }
         if (returnChannelActions.isNotEmpty()) appendLine()
 
         //Sync and async calls
@@ -148,7 +151,15 @@ class FunctionNode(
             append(action.toProm(1))
         }
         
-        if (getReturns().isEmpty()) appendLineIndented(1, "ret!0")
+        if (getReturns().isEmpty() && !isConstructor) appendLineIndented(1, "ret!0")
+        if (isConstructor) {
+            val struct = returnType as DLStruct
+            appendLineIndented(1, "${struct.promType()} struct")
+            struct.propertyConsumers.forEach { (propName, consumer) -> 
+                appendLineIndented(1, "struct.$propName = ${consumer.consumesFrom!!.promRefName}")
+            }
+            appendLineIndented(1, "ret!struct")
+        }
         appendLineIndented(1, "end: skip")
         appendLine("}")
     }
@@ -157,7 +168,7 @@ class FunctionNode(
     
     
     private fun paramListProm(): String = buildString {
-        val myPromParams = implicitParameters.toSortedMap().values + importantParameters.keys.sorted().map { importantParameters[it]!! }
+        val myPromParams = implicitParameters.toSortedMap().values + importantParameters.toSortedMap().values
         myPromParams.forEach { param ->
             append(param.toProm(), "; ")
         }

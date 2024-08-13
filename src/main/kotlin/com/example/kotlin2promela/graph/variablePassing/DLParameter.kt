@@ -11,6 +11,6 @@ class DLParameter(
     override val isClassProperty: Boolean,
     override val type: DLValType,
 ) : DLPropParam() {
-    override fun toProm(indent: Int): String = "chan ${promRefName}"
+    override fun toProm(indent: Int): String  = "${type.promType()} $promRefName"
     override val promRefName = "ch$offset" 
 }

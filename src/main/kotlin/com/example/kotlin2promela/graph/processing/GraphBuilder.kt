@@ -25,7 +25,7 @@ class GraphBuilder(private val project: Project) {
     }
     
     fun channelFlow(): GraphBuilder {
-        GraphChannelLinker(dlGraph).link()
+        ReversedLinker(dlGraph).link()
         return this
     }
     

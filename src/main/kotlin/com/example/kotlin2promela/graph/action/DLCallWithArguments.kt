@@ -23,12 +23,22 @@ interface DLCallWithArguments : DLAction {
                 actionPerformedInArgument.unNest().forEach { actionAccumulator.add(it) }
                 
                 // variable passing for non unit call action argument
-                if (actionPerformedInArgument is CallDLAction && actionPerformedInArgument.returnType !is DLUnitValType) {
-                    val newProp = DLProperty(actionPerformedInArgument.offset, actionPerformedInArgument.file, null, false, DLChannelValType())
+                if (actionPerformedInArgument is CallDLAction && actionPerformedInArgument.returnType !is DLUnitValType 
+                    || actionPerformedInArgument is DLPropertyAccessAction && actionPerformedInArgument.obj != null) {
+                    val propType = if (this is CallWithCalleeFunDLAction) callee.importantParameters[indexKey]!!.type else DLChannelValType()
+                    val newProp = DLProperty(
+                        actionPerformedInArgument.offset,
+                        actionPerformedInArgument.file,
+                        null,
+                        false,
+                        propType
+                    )
                     val passingArgument = DLPassingArgument(DLValConsumer.createAndLinkChannelConsumer(newProp))
                     args[indexKey] = passingArgument
-                    val propAssignAction = AssignPropertyDLAction(actionPerformedInArgument.file, actionPerformedInArgument.offset,
-                        actionPerformedInArgument.performedIn, null, actionArg, newProp)
+                    val propAssignAction = AssignPropertyDLAction(
+                        actionPerformedInArgument.file, actionPerformedInArgument.offset,
+                        actionPerformedInArgument.performedIn, null, actionArg, newProp
+                    )
                     actionAccumulator.add(propAssignAction)
                 } else {
                     args.remove(indexKey)

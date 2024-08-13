@@ -8,11 +8,16 @@ import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLChannelV
 import com.intellij.psi.SmartPsiElementPointer
 import org.jetbrains.kotlin.psi.KtCallExpression
 
-class ChannelSendDLAction(override val file: String, override val offset: Int, override val performedIn: FunctionNode,
-                          override val psiPointer: SmartPsiElementPointer<KtCallExpression>
-) : DLCallWithArguments, DLValConsumer() {
+class ChannelSendDLAction(
+    override val file: String, 
+    override val offset: Int,
+    override val performedIn: FunctionNode,
+    override val psiPointer: SmartPsiElementPointer<KtCallExpression>
+) : DLCallWithArguments  {
     override val args = mutableMapOf<Int, DLArgument>()
     override val implArgs: MutableMap<Int, DLPassingArgument> = mutableMapOf()
-    override fun toProm(indent: Int): String = 
-        buildString { appendLineIndented(indent, "${consumesFrom?.promRefName ?: "ERROR" }!0") }
+    override fun toProm(indent: Int): String = buildString { 
+        val provider = (args[-1] as DLPassingArgument).consumer.consumesFrom!!
+        appendLineIndented(indent, "${provider.promRefName}!0") 
+    }
 }

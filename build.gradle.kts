@@ -1,7 +1,7 @@
 plugins {
     id("java")
-    id("org.jetbrains.kotlin.jvm") version "1.9.24"
-    id("org.jetbrains.intellij") version "1.17.2"
+    id("org.jetbrains.kotlin.jvm") version "2.0.10"
+    id("org.jetbrains.intellij.platform") version "2.0.1"
 }
 
 group = "com.example"
@@ -9,16 +9,38 @@ version = "1.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
+    intellijPlatform {
+        defaultRepositories()
+    }
 }
 
-// Configure Gradle IntelliJ Plugin
-// Read more: https://plugins.jetbrains.com/docs/intellij/tools-gradle-intellij-plugin.html
-intellij {
-    version.set("2024.1")
-    type.set("IC") // Target IDE Platform
+dependencies {
+    intellijPlatform {
+        bundledPlugins("org.jetbrains.kotlin")
+        plugins("IdeaVIM:2.15.3")
+        create("IC", "2024.2")
 
-    plugins.set(listOf("Kotlin", "IdeaVIM:2.10.2", "org.jetbrains.android:241.14494.127"))
+        pluginVerifier()
+        zipSigner()
+        instrumentationTools()
+    }
 }
+
+intellijPlatform {
+    pluginConfiguration {
+        name = "Kotlin2Promela"
+    }
+}
+
+
+//// Configure Gradle IntelliJ Plugin
+//// Read more: https://plugins.jetbrains.com/docs/intellij/tools-gradle-intellij-plugin.html
+//intellij {
+//    version.set("2024.2")
+//    type.set("IC") // Target IDE Platform
+//
+//    plugins.set(listOf("IdeaVIM:2.15.3", "org.jetbrains.android:242.20224.300"))
+//}
 
 tasks {
     // Set the JVM compatibility versions

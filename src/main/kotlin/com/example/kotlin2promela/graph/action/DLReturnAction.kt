@@ -24,8 +24,7 @@ class DLReturnAction(
         
         // Un-nesting returned expression
         val actionToReturn = (returning as DLActionArgument).action
-        val actionList = mutableListOf<DLAction>()
-        actionToReturn.unNest().forEach { actionList.add(it) }
+        val actionList = actionToReturn.unNest().toMutableList()
         
         // If out of scope return nothing.
         if (actionToReturn is OutOfScopeCallDLAction) {

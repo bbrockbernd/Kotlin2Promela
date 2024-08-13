@@ -12,12 +12,11 @@ import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.containingClass
 import org.jetbrains.kotlin.psi.psiUtil.createSmartPointer
 
-private const val RECEIVER = -1
-
 class ReversedLinker(val dlGraph: DeadlockGraph) {
     
     private interface Job
     private data class CallArgJob(val callAction: CallDLAction, val argIndex: Int, val dlType: DLValType): Job
+    private data class CallRecvArgJob(val callAction: DLCallWithArguments, val dlType: DLValType): Job
     private data class RetArgJob(val retAction: DLReturnAction, val dlType: DLValType): Job
     private data class PropArgJob(val propAssignAction: AssignPropertyDLAction, val dlType: DLValType): Job
     private data class PropAccessArgJob(val propAccessAction: DLPropertyAccessAction, val dlType: DLValType): Job
@@ -32,15 +31,16 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
     
     fun link() {
         dlGraph.channelOperations.forEach{ operation -> 
-            argumentPositionsTodo.add(CallArgJob(operation as CallDLAction, RECEIVER, DLChannelValType()))
+            argumentPositionsTodo.add(CallRecvArgJob(operation as DLCallWithArguments, DLChannelValType()))
         }
         
-        while (visitedSet.isNotEmpty()) {
+        while (argumentPositionsTodo.isNotEmpty()) {
             when (val currentJob = argumentPositionsTodo.removeLast()) {
                 is CallArgJob -> processCallArgument(currentJob)
                 is RetArgJob -> processRetArgument(currentJob)
                 is PropArgJob -> processPropArgument(currentJob)
                 is PropAccessArgJob -> processPropAccessArgument(currentJob)
+                is CallRecvArgJob -> processCallRecvArgument(currentJob)
             }
         }
 
@@ -49,13 +49,32 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
             .forEach { it.returnType = structStore[it.info.fqName]!! }
     }
     
-    // index -1 = receiver
     private fun processCallArgument(argJob: CallArgJob) { 
         val (callAction, argIndex, dlType) = argJob
         val arg = callAction.args[argIndex]
         processArgument(arg, callAction, dlType, {callAction.args[argIndex] = it}) {
             val psiCall = callAction.psiPointer.element!!
             return@processArgument psiCall.valueArguments[argIndex]!!.getArgumentExpression() as KtNameReferenceExpression
+        }
+    }
+    
+    private fun processCallRecvArgument(argJob: CallRecvArgJob) {
+        val (callAction, dlType) = argJob
+        val psiCall = callAction.psiPointer?.element!!
+
+        // If real case (with dotQ and all) process like normal
+        if (psiCall.parent is KtDotQualifiedExpression && (psiCall.parent as KtDotQualifiedExpression).selectorExpression == psiCall) { 
+            val arg = callAction.args[-1]
+            processArgument(arg, callAction, dlType, { callAction.args[-1] = it}) {
+                (psiCall.parent as KtDotQualifiedExpression).receiverExpression as KtNameReferenceExpression
+            }
+        }
+        // else link this to self call
+        else {
+            if (callAction.args[-1] != null) throw IllegalStateException("Receiver was already added to call!")
+            val consumer = DLValConsumer()
+            callAction.args[-1] = DLPassingArgument(consumer)
+            linkThis(callAction, consumer, dlType)
         }
     }
 
@@ -81,8 +100,9 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
         val (propAccessAction, dlType) = propAccessJob
         val arg = propAccessAction.obj
         processArgument(arg, propAccessAction, dlType, { propAccessAction.obj = it }) {
-            val psiProperty = propAccessAction.psiPointer?.element!!
-            return@processArgument (psiProperty.parent as KtDotQualifiedExpression).receiverExpression as KtNameReferenceExpression
+            val psiDotQ = propAccessAction.psiPointer?.element!!
+            val psiReceiver = psiDotQ.receiverExpression
+            return@processArgument psiReceiver as KtNameReferenceExpression
         }
     }
     
@@ -102,7 +122,7 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
                 
                 // Struct consumes from prop in constructor (aka class prop)
                 val fqName = origin.containingClass()?.fqName.toString()
-                val struct = structStore.computeIfAbsent(fqName) { DLStruct(fqName) }
+                val struct = structStore.computeIfAbsent(fqName) { DLStruct(origin.containingClass()!!) }
                 val propName = origin.name!!
                 if (!struct.propertyConsumers.contains(propName)) {
                     val structConsumer = DLValConsumer()
@@ -111,15 +131,14 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
                     linkOriginToConsumer(origin, structConsumer, fn , dlType)
                 }
                 
-                // TODO self consumes from receiver argument (-1) 
-                // pass selfConsumer to be linked to receiver argument
+                // self consumes from receiver parameter (-1) 
+                linkThis(action, selfConsumer, struct)
                 
             } else {
                 val consumer = DLValConsumer()
                 setArgument(DLPassingArgument(consumer))
                 linkOriginToConsumer(origin, consumer, action.performedIn, dlType)
             }
-
         } 
             
         // if arg is a call
@@ -137,65 +156,78 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
         else if (arg is DLActionArgument && arg.action is DLPropertyAccessAction) {
             // Get receiver dlType
             val dotQ = arg.action.psiPointer?.element!!
-            val clazzPropRef = (dotQ.selectorExpression as KtNameReferenceExpression).reference!!.resolve() as KtNamedDeclaration
+            val clazzPropRef =
+                (dotQ.selectorExpression as KtNameReferenceExpression).reference!!.resolve() as KtNamedDeclaration
             val fqName = clazzPropRef.containingClass()?.fqName.toString()
-            val struct = structStore.computeIfAbsent(fqName) { DLStruct(fqName) }
-            
+            val struct = structStore.computeIfAbsent(fqName) { DLStruct(clazzPropRef.containingClass()!!) }
+
             // if selector is new for receiver -> add and create argJob for corresponding arg in constructor
             val propName = arg.action.propertyName
             if (!struct.propertyConsumers.contains(propName)) {
                 val structConsumer = DLValConsumer()
                 struct.propertyConsumers[propName] = structConsumer
                 val fn = dlGraph.getOrCreateFunction(clazzPropRef.containingClass()!!)
-                linkOriginToConsumer(clazzPropRef, structConsumer, fn , dlType)
+                linkOriginToConsumer(clazzPropRef, structConsumer, fn, dlType)
             }
-            
+
             argumentPositionsTodo.add(PropAccessArgJob(arg.action, struct))
 
-        } else {
+        } else if (arg is DLActionArgument && arg.action is ChannelInitDLAction) return
+            
+        else {
             throw IllegalStateException("Expected receiver or argument but was $arg, or was already initialized")
         }
     }
     
     
-    private fun linkReceiverToSelf(fn: FunctionNode) {
-        
+    private fun linkThis(action: DLAction, consumer: DLValConsumer, dlType: DLValType) {
+        val usageFun = action.performedIn
+        val psiOriginFun = MyPsiUtils.findParent(action.psiPointer?.element!!, { it is KtNamedFunction },  { it is KtFile }) as KtNamedFunction
+        val originFun = dlGraph.getOrCreateFunction(psiOriginFun)
+        if (!originFun.implicitParameters.contains(-1)) {
+            originFun.implicitParameters[-1] = DLParameter(psiOriginFun.textOffset, psiOriginFun.containingFile.virtualFile.path, null, false, dlType)
+            originFun.calledBy.forEach {
+                argumentPositionsTodo.add(CallRecvArgJob(it as CallDLAction, dlType))
+            }
+        }
+        val recvArg = originFun.implicitParameters[-1]!!
+        linkAndFixLambda(originFun, psiOriginFun, recvArg, usageFun, consumer)
     }
     
     private fun linkOriginToConsumer(origin: KtNamedDeclaration, consumer: DLValConsumer, usageFun: FunctionNode, dlType: DLValType) {
         val originPsiParent = MyPsiUtils.findParent(origin, { it is KtFunction || it is KtClass }, { it is KtFile })!!
         
-        // if origin is in function and is not the same function as the usage location and is not a constructor 
-        // -> implicit pass through lambda scopes
-        if (originPsiParent is KtFunction && !dlGraph.getOrCreateFunction(originPsiParent).isConstructor) {
-            val originFun = dlGraph.getOrCreateFunction(originPsiParent)
-
-            if (origin is KtParameter) {
-                val paramIndex = MyPsiUtils.getParameterIndex(origin)
-                val provider = originFun.importantParameters.computeIfAbsent(paramIndex) {
-                    DLParameter(origin.textOffset, origin.containingFile.virtualFile.path, origin.createSmartPointer(), false, dlType)
-                }
-                linkAndFixLambda(originFun, origin, provider, usageFun, consumer)
-                
-                if (!visitedParam(originFun, paramIndex)) {
-                    originFun.calledBy.forEach { 
-                        argumentPositionsTodo.add(CallArgJob(it as CallDLAction, paramIndex, dlType))
-                    }
-                }
-
-            } else if (origin is KtProperty) {
-                val propAssign = originFun.getPropertyAssignFor(origin)
-                if (propAssign.assignee == null) propAssign.assignee =
-                    DLProperty(origin.textOffset, origin.containingFile.virtualFile.path, origin.createSmartPointer(), false, dlType)
-                val provider = propAssign.assignee!!
-                linkAndFixLambda(originFun, origin, provider, usageFun, consumer)
-                
-                if (!visitedProp(propAssign)) {
-                    argumentPositionsTodo.add(PropArgJob(propAssign, dlType))
-                }
-
-            } else throw IllegalStateException("Should property or parameter but is ${origin?.javaClass?.name}")
+        val originFun = when {
+            originPsiParent is KtFunction -> dlGraph.getOrCreateFunction(originPsiParent)
+            originPsiParent is KtClass -> dlGraph.getOrCreateFunction(originPsiParent)
+            else -> throw IllegalStateException("origin parent not found (this error should be dead code)")
         }
+
+        if (origin is KtParameter) {
+            val paramIndex = MyPsiUtils.getParameterIndex(origin)
+            val provider = originFun.importantParameters.computeIfAbsent(paramIndex) {
+                DLParameter(origin.textOffset, origin.containingFile.virtualFile.path, origin.createSmartPointer(), false, dlType)
+            }
+            linkAndFixLambda(originFun, origin, provider, usageFun, consumer)
+            
+            if (!visitedParam(originFun, paramIndex)) {
+                originFun.calledBy.forEach { 
+                    argumentPositionsTodo.add(CallArgJob(it as CallDLAction, paramIndex, dlType))
+                }
+            }
+
+        } else if (origin is KtProperty) {
+            val propAssign = originFun.getPropertyAssignFor(origin)
+            if (propAssign.assignee == null) propAssign.assignee =
+                DLProperty(origin.textOffset, origin.containingFile.virtualFile.path, origin.createSmartPointer(), false, dlType)
+            val provider = propAssign.assignee!!
+            linkAndFixLambda(originFun, origin, provider, usageFun, consumer)
+            
+            if (!visitedProp(propAssign)) {
+                argumentPositionsTodo.add(PropArgJob(propAssign, dlType))
+            }
+
+        } else throw IllegalStateException("Should property or parameter but is ${origin?.javaClass?.name}")
     }
     
     

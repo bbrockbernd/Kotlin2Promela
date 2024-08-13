@@ -38,13 +38,20 @@ class AssignPropertyDLAction(
             appendLineIndented(indent, "new_${chanInitAction.globalRefName}(${prop.promRefName})")
         }
             
-        // return from call is assigned to channel property -> val a = getChannel()
+        // return from call is assigned to property -> val a = getChannel()
         else if (assignee is DLProperty && assigning is DLActionArgument && (assigning as DLActionArgument).action is CallDLAction) {
             val callAction = (assigning as DLActionArgument).action as CallDLAction
             val prop = assignee as DLProperty
-            appendLineIndented(indent, "chan ${prop.promRefName}")
+            appendLineIndented(indent, "${prop.type.promType()} ${prop.promRefName}")
             append(callAction.toProm(indent, prop.promRefName))
-        } 
+        }
+
+        // property access is assigned to new property -> val a = bla.chan
+        else if (assignee is DLProperty && assigning is DLActionArgument && (assigning as DLActionArgument).action is DLPropertyAccessAction) {
+            val propAccessAction = (assigning as DLActionArgument).action as DLPropertyAccessAction
+            val prop = assignee as DLProperty
+            appendLineIndented(indent, "${prop.type.promType()} ${prop.promRefName} = ${propAccessAction.toProm(indent)}")
+        }
             
         //Property is assigned to property -> val a: Channel = b
         else if (assignee is DLProperty && assigning is DLPassingArgument) {
