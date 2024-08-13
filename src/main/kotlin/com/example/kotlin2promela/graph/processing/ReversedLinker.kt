@@ -187,13 +187,13 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
         val usageFun = action.performedIn
         val psiOriginFun = MyPsiUtils.findParent(action.psiPointer?.element!!, { it is KtNamedFunction },  { it is KtFile }) as KtNamedFunction
         val originFun = dlGraph.getOrCreateFunction(psiOriginFun)
-        if (!originFun.implicitParameters.contains(-1)) {
-            originFun.implicitParameters[-1] = DLParameter(psiOriginFun.textOffset, psiOriginFun.containingFile.virtualFile.path, null, false, dlType)
+        if (!originFun.importantParameters.contains(-1)) {
+            originFun.importantParameters[-1] = DLParameter(psiOriginFun.textOffset, psiOriginFun.containingFile.virtualFile.path, null, false, dlType)
             originFun.calledBy.forEach {
                 argumentPositionsTodo.add(CallRecvArgJob(it as CallDLAction, dlType))
             }
         }
-        val recvArg = originFun.implicitParameters[-1]!!
+        val recvArg = originFun.importantParameters[-1]!!
         linkAndFixLambda(originFun, psiOriginFun, recvArg, usageFun, consumer)
     }
     
@@ -240,7 +240,6 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
         originProvider: DLValProvider,
         usageFun: FunctionNode,
         usageConsumer: DLValConsumer,
-        
     ) {
         val providerToLink = if (originFun != usageFun) { // If not pass is implicit
             val offset = originRef.textOffset

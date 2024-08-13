@@ -14,9 +14,9 @@ class ModelGenerator(private val dlGraph: DeadlockGraph) {
         
         funSet.filter {it.isConstructor} 
             .forEach { 
-                appendLine("/* class ${(it.returnType as DLStruct).fqName} */")
+                appendLine("/* class ${it.info.fqName} */")
                 appendLine("typedef ${it.returnType.promType()} {")
-                (it.returnType as DLStruct).propertyConsumers.forEach { (name, consumer) ->
+                (it.returnType as? DLStruct)?.propertyConsumers?.forEach { (name, consumer) ->
                     appendLine("    ${consumer.consumesFrom!!.type.promType()} $name")
                 }
                 appendLine("}")

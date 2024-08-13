@@ -21,7 +21,7 @@ class TestAction : AnAction() {
             .get()
         
         graph.getFunctions()
-            .filter { it.calledBy.isEmpty() }
+            .filter { it.calledBy.isEmpty() && it.importantParameters.isEmpty() && it.implicitParameters.isEmpty() }
             .forEach {
                 val model = ModelGenerator(graph).generateForEntryPoint(it) 
                 println("---------------------------------MODEL-------------------------------------------")
