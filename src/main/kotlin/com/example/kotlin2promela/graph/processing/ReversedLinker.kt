@@ -160,6 +160,9 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
                 (dotQ.selectorExpression as KtNameReferenceExpression).reference!!.resolve() as KtNamedDeclaration
             val fqName = clazzPropRef.containingClass()?.fqName.toString()
             val struct = structStore.computeIfAbsent(fqName) { DLStruct(clazzPropRef.containingClass()!!) }
+            
+            // Set type for property access
+            arg.action.type = dlType
 
             // if selector is new for receiver -> add and create argJob for corresponding arg in constructor
             val propName = arg.action.propertyName
@@ -250,7 +253,7 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
 
             // Hack use chaninit textOffset to differentiate
             path.first().callee.implicitParameters.computeIfAbsent(offset) {
-                DLParameter(offset, originRef.containingFile.virtualFile.path, null, false, DLChannelValType())
+                DLParameter(offset, originRef.containingFile.virtualFile.path, null, false, originProvider.type)
             }
 
             for (i in 1..path.lastIndex) {
@@ -259,7 +262,7 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
                     DLPassingArgument(DLValConsumer.createAndLinkChannelConsumer(param)) 
                 }
                 path[i].callee.implicitParameters.computeIfAbsent(offset) {
-                    DLParameter(offset, originRef.containingFile.virtualFile.path, null, false, DLChannelValType())
+                    DLParameter(offset, originRef.containingFile.virtualFile.path, null, false, originProvider.type)
                 }
             }
             path.last().callee.implicitParameters[offset] as DLParameter

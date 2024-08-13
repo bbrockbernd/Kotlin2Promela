@@ -1,11 +1,8 @@
 package com.example.kotlin2promela.graph.action
 
 import com.example.kotlin2promela.graph.FunctionNode
-import com.example.kotlin2promela.graph.variablePassing.DLValProvider
-import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLChannelValType
 import com.intellij.psi.SmartPsiElementPointer
 import org.jetbrains.kotlin.psi.KtCallExpression
-import org.jetbrains.kotlin.psi.KtProperty
 
 class ChannelInitDLAction(
     val id: String,

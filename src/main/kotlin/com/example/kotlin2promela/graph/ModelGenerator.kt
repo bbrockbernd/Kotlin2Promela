@@ -1,7 +1,6 @@
 package com.example.kotlin2promela.graph
 
 import com.example.kotlin2promela.graph.action.ChannelInitDLAction
-import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLChannelValType
 import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLStruct
 
 class ModelGenerator(private val dlGraph: DeadlockGraph) {

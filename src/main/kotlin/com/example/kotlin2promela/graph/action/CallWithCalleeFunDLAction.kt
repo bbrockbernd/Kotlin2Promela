@@ -14,7 +14,7 @@ abstract class CallWithCalleeFunDLAction(val callee: FunctionNode): DLCallWithAr
     var returnType: DLValType = DLUnitValType()
     
     fun promArgs() = buildString {
-        val myPromArgs = implArgs.toSortedMap().values + args
+        val myPromArgs = implArgs.toSortedMap().values + args.toSortedMap().values
         myPromArgs.filterIsInstance<DLPassingArgument>().forEach { arg ->
             append(arg.consumer.consumesFrom?.promRefName, ", ")
         }

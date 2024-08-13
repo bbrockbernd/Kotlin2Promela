@@ -154,11 +154,11 @@ class FunctionNode(
         if (getReturns().isEmpty() && !isConstructor) appendLineIndented(1, "ret!0")
         if (isConstructor) {
             val struct = returnType as DLStruct
-            appendLineIndented(1, "${struct.promType()} struct")
+            appendLineIndented(1, "${struct.promType()} obj")
             struct.propertyConsumers.forEach { (propName, consumer) -> 
-                appendLineIndented(1, "struct.$propName = ${consumer.consumesFrom!!.promRefName}")
+                appendLineIndented(1, "obj.$propName = ${consumer.consumesFrom!!.promRefName}")
             }
-            appendLineIndented(1, "ret!struct")
+            appendLineIndented(1, "ret!obj")
         }
         appendLineIndented(1, "end: skip")
         appendLine("}")

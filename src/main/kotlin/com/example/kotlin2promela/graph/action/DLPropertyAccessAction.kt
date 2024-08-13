@@ -2,7 +2,8 @@ package com.example.kotlin2promela.graph.action
 
 import com.example.kotlin2promela.graph.FunctionNode
 import com.example.kotlin2promela.graph.variablePassing.*
-import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLChannelValType
+import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLUnitValType
+import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLValType
 import com.intellij.psi.SmartPsiElementPointer
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 
@@ -14,6 +15,7 @@ class DLPropertyAccessAction(
     val propertyName: String,
     var obj: DLArgument?
 ) : DLAction {
+    var type: DLValType = DLUnitValType()
     
     override fun getChildActions(): List<DLAction> {
         if (obj is DLActionArgument) return listOf((obj as DLActionArgument).action)
@@ -35,7 +37,7 @@ class DLPropertyAccessAction(
         }
         
         // Create prop to accept value in and pass as receiver argument
-        val newProp = DLProperty(action.offset, action.file, null, false, DLChannelValType())
+        val newProp = DLProperty(action.offset, action.file, null, false, type)
         val passingArgument = DLPassingArgument(DLValConsumer.createAndLinkChannelConsumer(newProp))
         val propAssignAction = AssignPropertyDLAction(action.file, action.offset, action.performedIn, null, obj, newProp)
         obj = passingArgument

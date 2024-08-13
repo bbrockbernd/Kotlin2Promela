@@ -1,8 +1,5 @@
 package com.example.kotlin2promela.graph.variablePassing
 
-import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLChannelValType
-import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLValType
-
 open class DLValConsumer(var consumesFrom: DLValProvider? = null) {
     
     fun link(provider: DLValProvider) {
