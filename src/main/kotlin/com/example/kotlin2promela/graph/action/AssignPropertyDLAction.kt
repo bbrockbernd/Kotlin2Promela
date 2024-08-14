@@ -50,11 +50,9 @@ class AssignPropertyDLAction(
             val prop = assignee as DLProperty
             appendLineIndented(indent, "${prop.type.promType()} ${prop.promRefName}")
             
-            prop.type.getAllPrimitivePaths()
-                .map{if (it.isNotEmpty()) ".$it" else it}
-                .forEach {
-                    appendLineIndented(indent, "${prop.promRefName}$it = ${propAccessAction.toProm(indent)}$it")
-            }
+            prop.type.getAllPrimitivePaths(prop.promRefName)
+                .zip(prop.type.getAllPrimitivePaths(propAccessAction.toProm(indent)))
+                .forEach { (left, right) -> appendLineIndented(indent, "$left = $right") }
         }
             
         //Property is assigned to property -> val a: Channel = b

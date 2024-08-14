@@ -146,7 +146,6 @@ class FunctionNode(
 
         //Sync and async calls
         actionList
-//            .filter { it is CallWithCalleeFunDLAction || it is ChannelRecvDLAction || it is ChannelSendDLAction }
             .forEach { action -> 
             append(action.toProm(1))
         }
@@ -155,10 +154,10 @@ class FunctionNode(
         if (isConstructor) {
             appendLineIndented(1, "${returnType.promType()} obj")
             (returnType as? DLStruct)?.propertyConsumers?.forEach { (propName, consumer) -> 
-                consumer.consumesFrom!!.type.getAllPrimitivePaths()
-                    .map{if (it.isNotEmpty()) ".$it" else it}
-                    .forEach {
-                        appendLineIndented(1, "obj.$propName$it = ${consumer.consumesFrom!!.promRefName}$it")
+                consumer.consumesFrom!!.type.getAllPrimitivePaths(propName)
+                    .zip(consumer.consumesFrom!!.let{it.type.getAllPrimitivePaths(it.promRefName)})
+                    .forEach { (propNamePath, promRefNamePath) ->
+                        appendLineIndented(1, "obj.$propNamePath = $promRefNamePath")
                     }
             }
             appendLineIndented(1, "ret!obj")
