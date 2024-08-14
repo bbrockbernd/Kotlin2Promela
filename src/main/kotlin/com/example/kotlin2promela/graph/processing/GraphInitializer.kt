@@ -10,6 +10,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.psi.*
+import org.jetbrains.kotlin.psi.psiUtil.containingClass
 import org.jetbrains.kotlin.psi.psiUtil.createSmartPointer
 import org.jetbrains.kotlin.psi.psiUtil.isAbstract
 
@@ -48,6 +49,7 @@ class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val rel
 
     // Starting point for function exploration
     private fun exploreFunctionOrClassDeclaration(fn: KtFunction): FunctionNode {
+        if (fn is KtConstructor<*>) return exploreFunctionOrClassDeclaration(fn.containingClass()!!)
         // init
         val funNode = dlGraph.getOrCreateFunction(fn)
         if (funNode.visited) return funNode
