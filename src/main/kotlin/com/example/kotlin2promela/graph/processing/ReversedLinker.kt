@@ -54,7 +54,8 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
         val arg = callAction.args[argIndex]
         processArgument(arg, callAction, dlType, {callAction.args[argIndex] = it}) {
             val psiCall = callAction.psiPointer.element!!
-            return@processArgument psiCall.valueArguments[argIndex]!!.getArgumentExpression() as KtNameReferenceExpression
+            val psiArg = psiCall.valueArguments[argIndex]!!.getArgumentExpression()!!
+            return@processArgument MyPsiUtils.getRefExprChild(psiArg)!!
         }
     }
     
@@ -66,7 +67,8 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
         if (psiCall.parent is KtDotQualifiedExpression && (psiCall.parent as KtDotQualifiedExpression).selectorExpression == psiCall) { 
             val arg = callAction.args[-1]
             processArgument(arg, callAction, dlType, { callAction.args[-1] = it}) {
-                (psiCall.parent as KtDotQualifiedExpression).receiverExpression as KtNameReferenceExpression
+                val rec = (psiCall.parent as KtDotQualifiedExpression).receiverExpression
+                return@processArgument MyPsiUtils.getRefExprChild(rec)!!
             }
         }
         // else link this to self call
@@ -83,7 +85,8 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
         val arg = retAction.returning
         processArgument(arg, retAction, dlType, {retAction.returning = it}) {
             val psiReturn = retAction.psiPointer.element!!
-            return@processArgument psiReturn.returnedExpression as KtNameReferenceExpression
+            val returnedExpr = psiReturn.returnedExpression!!
+            return@processArgument MyPsiUtils.getRefExprChild(returnedExpr)!!
         }
     }
     
@@ -92,7 +95,8 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
         val arg = propAction.assigning
         processArgument(arg, propAction, dlType, { propAction.assigning = it}) {
             val psiProperty = propAction.psiPointer?.element!!
-            return@processArgument psiProperty.initializer as KtNameReferenceExpression
+            val initializer = psiProperty.initializer!!
+            return@processArgument MyPsiUtils.getRefExprChild(initializer)!!
         }
     }
     
@@ -102,7 +106,7 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
         processArgument(arg, propAccessAction, dlType, { propAccessAction.obj = it }) {
             val psiDotQ = propAccessAction.psiPointer?.element!!
             val psiReceiver = psiDotQ.receiverExpression
-            return@processArgument psiReceiver as KtNameReferenceExpression
+            return@processArgument MyPsiUtils.getRefExprChild(psiReceiver)!! 
         }
     }
     
@@ -111,13 +115,23 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
         if (arg == null) {
             // insert consumer and resolve origin
             val psiArg = getPsiRefForArg()
-            val origin = psiArg.reference?.resolve() as KtNamedDeclaration
+            val origin = psiArg.reference?.resolve() 
+            if (origin !is KtNamedDeclaration) {
+                println("Could not find origin of reference $psiArg")
+                return
+            }
+            if (origin is KtDestructuringDeclarationEntry) {
+                println("Reference originates from destructuring expression which is not supported")
+                return
+            }
+                
             if ((origin is KtProperty && origin.isMember || origin is KtParameter && origin.hasValOrVar()) && !action.performedIn.isConstructor) {
                 
                 // Setup self consumer and prop access
                 val selfConsumer = DLValConsumer()
                 val self = DLPassingArgument(selfConsumer)
                 val selfAccess = DLPropertyAccessAction(psiArg.containingFile.virtualFile.path, psiArg.textOffset, action.performedIn, null, psiArg.getReferencedName(), self)
+                selfAccess.type = dlType
                 setArgument(DLActionArgument(selfAccess))
                 
                 // Struct consumes from prop in constructor (aka class prop)
@@ -133,6 +147,13 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
                 
                 // self consumes from receiver parameter (-1) 
                 linkThis(action, selfConsumer, struct)
+                
+            } else if(psiArg.parent is KtThisExpression) {
+                // Setup self consumer and prop access
+                val selfConsumer = DLValConsumer()
+                val self = DLPassingArgument(selfConsumer)
+                setArgument(self)
+                linkThis(action, selfConsumer, dlType)
                 
             } else {
                 val consumer = DLValConsumer()
@@ -160,7 +181,7 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
                 (dotQ.selectorExpression as KtNameReferenceExpression).reference!!.resolve() as KtNamedDeclaration
             val fqName = clazzPropRef.containingClass()?.fqName.toString()
             val struct = structStore.computeIfAbsent(fqName) { DLStruct(clazzPropRef.containingClass()!!) }
-            
+
             // Set type for property access
             arg.action.type = dlType
 
@@ -175,8 +196,8 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
 
             argumentPositionsTodo.add(PropAccessArgJob(arg.action, struct))
 
-        } else if (arg is DLActionArgument && arg.action is ChannelInitDLAction) return
-            
+        } else if (arg is DLActionArgument && (arg.action is ChannelInitDLAction || arg.action is OutOfScopeCallDLAction)) return
+
         else {
             throw IllegalStateException("Expected receiver or argument but was $arg, or was already initialized")
         }
@@ -185,8 +206,14 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
     
     private fun linkThis(action: DLAction, consumer: DLValConsumer, dlType: DLValType) {
         val usageFun = action.performedIn
-        val psiOriginFun = MyPsiUtils.findParent(action.psiPointer?.element!!, { it is KtNamedFunction },  { it is KtFile }) as KtNamedFunction
-        val originFun = dlGraph.getOrCreateFunction(psiOriginFun)
+        val psiOriginFun = MyPsiUtils.findParent(action.psiPointer?.element!!, { it is KtNamedFunction || it is KtClass },  { it is KtFile }) 
+        if (psiOriginFun !is KtNamedFunction && psiOriginFun !is KtClass)  
+            throw IllegalStateException("Cannot find origin function of action")
+        val originFun = when {
+            psiOriginFun is KtClass -> dlGraph.getOrCreateFunction(psiOriginFun)
+            psiOriginFun is KtNamedFunction -> dlGraph.getOrCreateFunction(psiOriginFun)
+            else -> throw IllegalStateException("Cannot find origin function of action") 
+        }
         if (!originFun.importantParameters.contains(-1)) {
             originFun.importantParameters[-1] = DLParameter(psiOriginFun.textOffset, psiOriginFun.containingFile.virtualFile.path, null, false, dlType)
             originFun.calledBy.forEach {
@@ -194,8 +221,9 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
             }
         }
         val recvArg = originFun.importantParameters[-1]!!
-        linkAndFixLambda(originFun, psiOriginFun, recvArg, usageFun, consumer)
+        linkAndFixLambda(originFun, psiOriginFun as KtNamedDeclaration, recvArg, usageFun, consumer)
     }
+    
     
     private fun linkOriginToConsumer(origin: KtNamedDeclaration, consumer: DLValConsumer, usageFun: FunctionNode, dlType: DLValType) {
         val originPsiParent = MyPsiUtils.findParent(origin, { it is KtFunction || it is KtClass }, { it is KtFile })!!
@@ -220,7 +248,12 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
             }
 
         } else if (origin is KtProperty) {
-            val propAssign = originFun.getPropertyAssignFor(origin)
+            val propAssign = originFun.getPropertyAssignFor(origin) 
+            if (propAssign == null) {
+                println("Could not find prop assing probably lateinit or \"by\": ${origin.text}")
+                return
+            }
+            
             if (propAssign.assignee == null) propAssign.assignee =
                 DLProperty(origin.textOffset, origin.containingFile.virtualFile.path, origin.createSmartPointer(), false, dlType)
             val provider = propAssign.assignee!!

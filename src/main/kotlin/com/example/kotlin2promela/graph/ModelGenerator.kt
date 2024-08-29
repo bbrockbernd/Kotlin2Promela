@@ -2,6 +2,7 @@ package com.example.kotlin2promela.graph
 
 import com.example.kotlin2promela.graph.action.ChannelInitDLAction
 import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLStruct
+import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLUnitValType
 import java.util.*
 
 class ModelGenerator(private val dlGraph: DeadlockGraph) {
@@ -17,14 +18,14 @@ class ModelGenerator(private val dlGraph: DeadlockGraph) {
             .map { it.returnType }
             .filterIsInstance<DLStruct>()
             .topologicalSortedTypes { it.propertyConsumers.values
-                .map { tp -> tp.consumesFrom?.type!! }
+                .map { tp -> tp.consumesFrom?.type?: DLUnitValType() }
                 .filterIsInstance<DLStruct>()
             }
             .forEach {
                 appendLine("/* class ${it.fqName} */")
                 appendLine("typedef ${it.promType()} {")
                 it.propertyConsumers.forEach { (name, consumer) ->
-                    appendLine("    ${consumer.consumesFrom!!.type.promType()} $name")
+                    appendLine("    ${consumer.consumesFrom?.type?.promType()?: "TYPE ERROR"} $name")
                 }
                 appendLine("}")
             }

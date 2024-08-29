@@ -17,6 +17,14 @@ class DLPropertyAccessAction(
 ) : DLAction {
     var type: DLValType = DLUnitValType()
     
+//    fun toKeep(): Boolean {
+//        if (type is DLUnitValType) return false
+//        if (obj == null) return false
+//        if (obj is DLActionArgument && (obj as DLActionArgument).action is DLPropertyAccessAction) 
+//            return ((obj as DLActionArgument).action as DLPropertyAccessAction).toKeep()
+//        return true
+//    }
+    
     override fun getChildActions(): List<DLAction> {
         if (obj is DLActionArgument) return listOf((obj as DLActionArgument).action)
         else return emptyList()
@@ -36,8 +44,17 @@ class DLPropertyAccessAction(
             return actionList
         }
         
+        val newPropType = when {
+            action is CallDLAction -> action.returnType
+            action is DLPropertyAccessAction -> action.type
+            else -> {
+                println("During unnest of property access: action was not a call nor property access")
+                type
+            }
+        }
+        
         // Create prop to accept value in and pass as receiver argument
-        val newProp = DLProperty(action.offset, action.file, null, false, type)
+        val newProp = DLProperty(action.offset, action.file, null, false, newPropType)
         val passingArgument = DLPassingArgument(DLValConsumer.createAndLinkChannelConsumer(newProp))
         val propAssignAction = AssignPropertyDLAction(action.file, action.offset, action.performedIn, null, obj, newProp)
         obj = passingArgument
@@ -51,6 +68,6 @@ class DLPropertyAccessAction(
             val objRefName = passingArgument.consumer.consumesFrom!!.promRefName
             append("$objRefName.$propertyName")
         }
-        else append("ERROR PROPERTY ACCESS")
+        else append("/* ERROR PROPERTY ACCESS */")
     }
 }

@@ -67,6 +67,7 @@ class ElementFilters {
                 val callee = el.calleeExpression
                 if (callee is KtNameReferenceExpression) {
                     if (callee.getReferencedName() == "send") {
+                        // TODO fix this actually check fq name!
                         return true
                     }
                 }

@@ -65,8 +65,8 @@ class FunctionNode(
         return getCallsWithArguments().first { it.offset == element.textOffset }
     }
     
-    fun getPropertyAssignFor(element: KtProperty): AssignPropertyDLAction {
-        return getPropertyAssign().first { it.offset == element.textOffset }
+    fun getPropertyAssignFor(element: KtProperty): AssignPropertyDLAction? {
+        return getPropertyAssign().firstOrNull { it.offset == element.textOffset }
     }
     
     fun getReturnFor(element: KtReturnExpression): DLReturnAction {
@@ -146,6 +146,7 @@ class FunctionNode(
 
         //Sync and async calls
         actionList
+            .filter { it !is DLPropertyAccessAction }
             .forEach { action -> 
             append(action.toProm(1))
         }
@@ -154,9 +155,9 @@ class FunctionNode(
         if (isConstructor) {
             appendLineIndented(1, "${returnType.promType()} obj")
             (returnType as? DLStruct)?.propertyConsumers?.forEach { (propName, consumer) -> 
-                consumer.consumesFrom!!.type.getAllPrimitivePaths(propName)
-                    .zip(consumer.consumesFrom!!.let{it.type.getAllPrimitivePaths(it.promRefName)})
-                    .forEach { (propNamePath, promRefNamePath) ->
+                consumer.consumesFrom?.type?.getAllPrimitivePaths(propName)
+                    ?.zip(consumer.consumesFrom!!.let{it.type.getAllPrimitivePaths(it.promRefName)})
+                    ?.forEach { (propNamePath, promRefNamePath) ->
                         appendLineIndented(1, "obj.$propNamePath = $promRefNamePath")
                     }
             }

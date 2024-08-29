@@ -2,6 +2,7 @@ package com.example.kotlin2promela.graph.action
 
 import com.example.kotlin2promela.graph.FunctionNode
 import com.example.kotlin2promela.graph.variablePassing.*
+import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLUnitValType
 import com.intellij.psi.SmartPsiElementPointer
 import org.jetbrains.kotlin.psi.KtProperty
 
@@ -47,6 +48,7 @@ class AssignPropertyDLAction(
         // property access is assigned to new property -> val a = bla.chan
         else if (assignee is DLProperty && assigning is DLActionArgument && (assigning as DLActionArgument).action is DLPropertyAccessAction) {
             val propAccessAction = (assigning as DLActionArgument).action as DLPropertyAccessAction
+            if (propAccessAction.obj == null || propAccessAction.type is DLUnitValType) return ""
             val prop = assignee as DLProperty
             appendLineIndented(indent, "${prop.type.promType()} ${prop.promRefName}")
             

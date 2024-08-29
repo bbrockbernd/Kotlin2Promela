@@ -58,6 +58,17 @@ class MyPsiUtils {
             return paramList.parameters.indexOf(element)
         }
         
+        fun getRefExprChild(element: PsiElement): KtNameReferenceExpression? {
+            val calls = MyPsiUtils.findAllChildren(
+                element,
+                { it is KtNameReferenceExpression },
+                { ElementFilters.isFunction(it) },
+                pruneOnCondition = true,
+                includeStart = true
+            )
+            return calls.firstOrNull() as KtNameReferenceExpression?
+        }
+        
         fun findAllChildren(
             startElement: PsiElement,
             pruneOnCondition: Boolean = false,

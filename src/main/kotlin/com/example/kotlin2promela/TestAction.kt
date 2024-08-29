@@ -9,6 +9,9 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectFileIndex
 import com.intellij.openapi.vfs.VirtualFile
 import org.jetbrains.kotlin.idea.KotlinFileType
+import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 class TestAction : AnAction() {
     override fun actionPerformed(e: AnActionEvent) {
@@ -19,7 +22,7 @@ class TestAction : AnAction() {
             .unNestCalls()
             .pruneSyncCalls()
             .get()
-        
+
         graph.getFunctions()
             .filter { it.calledBy.isEmpty() && it.importantParameters.isEmpty() && it.implicitParameters.isEmpty() }
             .forEach {
@@ -27,9 +30,11 @@ class TestAction : AnAction() {
                 println("---------------------------------MODEL-------------------------------------------")
                 println(model)
                 println("---------------------------------------------------------------------------------")
+                executeModel(model)
             }
         
-        println("break")
+        println("Done")
+
         
     }
     
@@ -42,5 +47,38 @@ class TestAction : AnAction() {
             true
         }
         return relevantFiles
+    }
+    
+    private fun executeModel(model: String) {
+        // Prepare spin executable
+        val inputStream = this.javaClass.getResourceAsStream("/executables/spin")
+            ?: throw NullPointerException("Cannot find spin executable")
+        val spinFile = File.createTempFile("spin", null)
+        inputStream.use { Files.copy(it, spinFile.toPath(), StandardCopyOption.REPLACE_EXISTING) }
+        spinFile.setExecutable(true)
+        
+        // write model to file
+        val modelFile = File.createTempFile("model${model.hashCode()}", ".pml")
+        modelFile.writeText(model)
+        
+        // run spin
+        val tempWorkingDir = Files.createTempDirectory("spin_dir${model.hashCode()}")
+        val processBuilder = ProcessBuilder()
+        processBuilder.command(listOf(
+            spinFile.absolutePath,
+            "-run",
+            "-DVECTORSZ=4508",
+            "-m10000000",
+            "-w26",
+            modelFile.absolutePath,
+            "-f"
+        ))
+        processBuilder.directory(tempWorkingDir.toFile())
+        processBuilder.redirectErrorStream(true)
+        val process = processBuilder.start()
+        
+        // get results
+        val result = process.inputStream.bufferedReader().readText()
+        println(result)
     }
 }

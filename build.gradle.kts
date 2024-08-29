@@ -17,7 +17,7 @@ repositories {
 dependencies {
     intellijPlatform {
         bundledPlugins("org.jetbrains.kotlin")
-        plugins("IdeaVIM:2.15.3")
+        plugins("IdeaVIM:2.15.3", "org.jetbrains.android:242.20224.387")
         create("IC", "2024.2")
 
         pluginVerifier()
@@ -32,15 +32,6 @@ intellijPlatform {
     }
 }
 
-
-//// Configure Gradle IntelliJ Plugin
-//// Read more: https://plugins.jetbrains.com/docs/intellij/tools-gradle-intellij-plugin.html
-//intellij {
-//    version.set("2024.2")
-//    type.set("IC") // Target IDE Platform
-//
-//    plugins.set(listOf("IdeaVIM:2.15.3", "org.jetbrains.android:242.20224.300"))
-//}
 
 tasks {
     // Set the JVM compatibility versions

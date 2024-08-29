@@ -29,6 +29,8 @@ class DeadlockGraph {
         }
     }
     
+    fun getFunctionById(funcId: String): FunctionNode? = funMap[funcId]
+    
     fun removeFunction(id: String) {
         assert(funMap[id]?.calledBy?.isEmpty() == true && funMap[id]?.getChildNodes()?.isEmpty() == true)
         funMap.remove(id)

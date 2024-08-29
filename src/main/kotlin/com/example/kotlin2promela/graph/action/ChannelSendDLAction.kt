@@ -15,7 +15,10 @@ class ChannelSendDLAction(
     override val args = mutableMapOf<Int, DLArgument>()
     override val implArgs: MutableMap<Int, DLPassingArgument> = mutableMapOf()
     override fun toProm(indent: Int): String = buildString { 
-        val provider = (args[-1] as DLPassingArgument).consumer.consumesFrom!!
+        val provider = (args[-1] as? DLPassingArgument)?.consumer?.consumesFrom
+        if (provider == null) {
+            throw IllegalStateException("How can a send call not have a channel to send it over?")
+        }
         appendLineIndented(indent, "${provider.promRefName}!0") 
     }
 }

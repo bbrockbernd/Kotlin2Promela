@@ -16,16 +16,21 @@ interface DLCallWithArguments : DLAction {
 
     override fun unNest(): List<DLAction> {
         val actionAccumulator: MutableList<DLAction> = mutableListOf()
-        args.forEach { (indexKey, arg) ->
+        args.keys.toList().forEach { indexKey ->
+            val arg = args[indexKey]
             if (arg !is DLPassingArgument) { 
                 val actionArg = arg as DLActionArgument
                 val actionPerformedInArgument = actionArg.action
                 actionPerformedInArgument.unNest().forEach { actionAccumulator.add(it) }
                 
-                // variable passing for non unit call action argument
+                // if action in argument is a call and does not return unit
+                // or action is property access and receiver is non null and the property type is non unit
                 if (actionPerformedInArgument is CallDLAction && actionPerformedInArgument.returnType !is DLUnitValType 
-                    || actionPerformedInArgument is DLPropertyAccessAction && actionPerformedInArgument.obj != null) {
-                    val propType = if (this is CallWithCalleeFunDLAction) callee.importantParameters[indexKey]!!.type else DLChannelValType()
+                    || actionPerformedInArgument is DLPropertyAccessAction && actionPerformedInArgument.obj != null && actionPerformedInArgument.type !is DLUnitValType) {
+                    val propType = if (this is CallWithCalleeFunDLAction) {
+                        if (callee.importantParameters[indexKey] == null) throw IllegalStateException("HUH WHERE MY PARAMETERS AT?")
+                        callee.importantParameters[indexKey]!!.type
+                    } else DLChannelValType()
                     val newProp = DLProperty(
                         actionPerformedInArgument.offset,
                         actionPerformedInArgument.file,
@@ -40,9 +45,11 @@ interface DLCallWithArguments : DLAction {
                         actionPerformedInArgument.performedIn, null, actionArg, newProp
                     )
                     actionAccumulator.add(propAssignAction)
-                } else {
+                } else if (actionPerformedInArgument is DLCallWithArguments) {
                     args.remove(indexKey)
                     actionAccumulator.add(actionPerformedInArgument)
+                } else {
+                    args.remove(indexKey)
                 }
             }
         }
