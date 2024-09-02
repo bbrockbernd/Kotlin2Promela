@@ -1,6 +1,7 @@
 package com.example.kotlin2promela.graph.processing
 
 import com.example.kotlin2promela.MyPsiUtils
+import com.example.kotlin2promela.VerboseLogger
 import com.example.kotlin2promela.graph.DeadlockGraph
 import com.example.kotlin2promela.graph.FunctionNode
 import com.example.kotlin2promela.graph.action.*
@@ -117,11 +118,11 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
             val psiArg = getPsiRefForArg()
             val origin = psiArg.reference?.resolve() 
             if (origin !is KtNamedDeclaration) {
-                println("Could not find origin of reference $psiArg")
+                VerboseLogger.log("Could not find origin of reference $psiArg")
                 return
             }
             if (origin is KtDestructuringDeclarationEntry) {
-                println("Reference originates from destructuring expression which is not supported")
+                VerboseLogger.log("Reference originates from destructuring expression which is not supported")
                 return
             }
                 
@@ -250,7 +251,7 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
         } else if (origin is KtProperty) {
             val propAssign = originFun.getPropertyAssignFor(origin) 
             if (propAssign == null) {
-                println("Could not find prop assing probably lateinit or \"by\": ${origin.text}")
+                VerboseLogger.log("Could not find prop assing probably lateinit or \"by\": ${origin.text}")
                 return
             }
             

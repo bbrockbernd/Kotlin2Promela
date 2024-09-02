@@ -2,6 +2,7 @@ package com.example.kotlin2promela.graph.processing
 
 import com.example.kotlin2promela.ElementFilters
 import com.example.kotlin2promela.MyPsiUtils
+import com.example.kotlin2promela.VerboseLogger
 import com.example.kotlin2promela.graph.DeadlockGraph
 import com.example.kotlin2promela.graph.FunctionNode
 import com.example.kotlin2promela.graph.action.AssignPropertyDLAction
@@ -17,7 +18,7 @@ import org.jetbrains.kotlin.psi.*
 class GraphChannelLinker(val dlGraph: DeadlockGraph) {
 
     fun link() {
-        println("----LINK-CHANNELS----")
+        VerboseLogger.log("----LINK-CHANNELS----")
         linkInits()
         linkParams()
         linkCallReturnValues()

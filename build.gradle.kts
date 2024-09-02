@@ -1,6 +1,7 @@
 plugins {
     id("java")
     id("org.jetbrains.kotlin.jvm") version "2.0.10"
+    kotlin("plugin.serialization") version "2.0.10"
     id("org.jetbrains.intellij.platform") version "2.0.1"
 }
 
@@ -15,6 +16,8 @@ repositories {
 }
 
 dependencies {
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.7.2") // Use the latest version
+    implementation("org.jetbrains.kotlinx:dataframe:0.13.1")
     intellijPlatform {
         bundledPlugins("org.jetbrains.kotlin")
         plugins("IdeaVIM:2.15.3", "org.jetbrains.android:242.20224.387")

@@ -2,6 +2,7 @@ package com.example.kotlin2promela.graph.processing
 
 import com.example.kotlin2promela.ElementFilters
 import com.example.kotlin2promela.MyPsiUtils
+import com.example.kotlin2promela.VerboseLogger
 import com.example.kotlin2promela.graph.DeadlockGraph
 import com.example.kotlin2promela.graph.FunctionNode
 import com.example.kotlin2promela.graph.action.*
@@ -16,11 +17,11 @@ import org.jetbrains.kotlin.psi.psiUtil.isAbstract
 
 class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val relevantFiles: List<VirtualFile>) {
     fun intialize() {
-        println("----INITIALIZE----")
+        VerboseLogger.log("----INITIALIZE----")
         val totalFiles = relevantFiles.size
         
         relevantFiles.forEachIndexed { ind, file ->
-            println("Handling file $ind/$totalFiles")
+            VerboseLogger.log("Handling file $ind/$totalFiles")
             
             MyPsiUtils.findClassDefinitions(file, project).forEach { clazz ->
                 if (!clazz.isInterface() && !clazz.isAbstract()) exploreFunctionOrClassDeclaration(clazz)

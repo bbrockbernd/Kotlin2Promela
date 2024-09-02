@@ -1,5 +1,6 @@
 package com.example.kotlin2promela.graph.action
 
+import com.example.kotlin2promela.VerboseLogger
 import com.example.kotlin2promela.graph.FunctionNode
 import com.example.kotlin2promela.graph.variablePassing.*
 import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLUnitValType
@@ -48,7 +49,7 @@ class DLPropertyAccessAction(
             action is CallDLAction -> action.returnType
             action is DLPropertyAccessAction -> action.type
             else -> {
-                println("During unnest of property access: action was not a call nor property access")
+                VerboseLogger.log("During unnest of property access: action was not a call nor property access")
                 type
             }
         }

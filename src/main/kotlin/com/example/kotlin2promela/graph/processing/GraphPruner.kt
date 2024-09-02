@@ -1,5 +1,6 @@
 package com.example.kotlin2promela.graph.processing
 
+import com.example.kotlin2promela.VerboseLogger
 import com.example.kotlin2promela.graph.DeadlockGraph
 import com.example.kotlin2promela.graph.action.AssignPropertyDLAction
 import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLUnitValType
@@ -7,7 +8,7 @@ import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLUnitValT
 class GraphPruner(private val dlGraph: DeadlockGraph) {
     
     fun prune() {
-        println("----PRUNING----")
+        VerboseLogger.log("----PRUNING----")
         // Remove calls that do not pass concurrency primitives
         dlGraph.getFunctions().forEach { fn -> 
             if (fn.importantParameters.isEmpty() && fn.implicitParameters.isEmpty() && fn.returnType is DLUnitValType) {

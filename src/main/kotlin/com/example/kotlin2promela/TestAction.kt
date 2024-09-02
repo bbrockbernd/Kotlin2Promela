@@ -15,6 +15,10 @@ import java.nio.file.StandardCopyOption
 
 class TestAction : AnAction() {
     override fun actionPerformed(e: AnActionEvent) {
+        Validator(e.project!!).validate(getRelevantFiles(e.project!!, null))
+    }
+    
+    private fun validateAll(e: AnActionEvent) {
         val graph = GraphBuilder(e.project!!)
             .setRelevantFiles(getRelevantFiles(e.project!!, null))
             .initGraph()
@@ -26,16 +30,13 @@ class TestAction : AnAction() {
         graph.getFunctions()
             .filter { it.calledBy.isEmpty() && it.importantParameters.isEmpty() && it.implicitParameters.isEmpty() }
             .forEach {
-                val model = ModelGenerator(graph).generateForEntryPoint(it) 
-                println("---------------------------------MODEL-------------------------------------------")
-                println(model)
-                println("---------------------------------------------------------------------------------")
+                val model = ModelGenerator(graph).generateForEntryPoint(it)
+                VerboseLogger.log("---------------------------------MODEL-------------------------------------------")
+                VerboseLogger.log(model)
+                VerboseLogger.log("---------------------------------------------------------------------------------")
                 executeModel(model)
             }
-        
-        println("Done")
-
-        
+        VerboseLogger.log("Done")
     }
     
     private fun getRelevantFiles(project: Project, scope: AnalysisScope?): List<VirtualFile> {
@@ -79,6 +80,6 @@ class TestAction : AnAction() {
         
         // get results
         val result = process.inputStream.bufferedReader().readText()
-        println(result)
+        VerboseLogger.log(result)
     }
 }

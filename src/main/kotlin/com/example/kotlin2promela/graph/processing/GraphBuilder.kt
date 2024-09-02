@@ -4,7 +4,7 @@ import com.example.kotlin2promela.graph.DeadlockGraph
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 
-class GraphBuilder(private val project: Project) {
+class GraphBuilder(private val project: Project, private val verbose: Boolean = true) {
     private var relevantFiles: List<VirtualFile> = emptyList()
     private var urlToVirtualFileMap: MutableMap<String, VirtualFile> = mutableMapOf()
     private val dlGraph = DeadlockGraph()
