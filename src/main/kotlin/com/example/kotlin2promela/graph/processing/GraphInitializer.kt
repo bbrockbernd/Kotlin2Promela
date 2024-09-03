@@ -131,7 +131,7 @@ class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val rel
         // TODO Delegate expression
         val propValue = prop.initializer
         val propAction = AssignPropertyDLAction(prop.containingFile.virtualFile.path, prop.textOffset, containingFun, prop.createSmartPointer(), null, null)
-        val assigning = exploreExpression(propValue, containingFun) ?: return null
+        val assigning = exploreExpression(propValue, containingFun) ?: return propAction
         propAction.assigning = DLActionArgument(assigning) 
         return propAction
     }

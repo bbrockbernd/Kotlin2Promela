@@ -3,10 +3,12 @@ package com.example.kotlin2promela.graph.action
 import com.example.kotlin2promela.graph.variablePassing.*
 import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLChannelValType
 import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLUnitValType
+import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLValType
 
 interface DLCallWithArguments : DLAction {
     val args : MutableMap<Int, DLArgument>
     val implArgs: MutableMap<Int, DLPassingArgument>
+    val returnType: DLValType
     fun hasExplArgs() = args.isNotEmpty()
     fun hasImplArgs() = implArgs.isNotEmpty()
     fun hasArgs() = args.isNotEmpty() || implArgs.isNotEmpty()

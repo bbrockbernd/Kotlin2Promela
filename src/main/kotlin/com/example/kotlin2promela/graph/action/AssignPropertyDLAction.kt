@@ -2,6 +2,7 @@ package com.example.kotlin2promela.graph.action
 
 import com.example.kotlin2promela.graph.FunctionNode
 import com.example.kotlin2promela.graph.variablePassing.*
+import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLChannelValType
 import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLUnitValType
 import com.intellij.psi.SmartPsiElementPointer
 import org.jetbrains.kotlin.psi.KtProperty
@@ -21,10 +22,21 @@ class AssignPropertyDLAction(
     }
 
     override fun unNest(): List<DLAction> {
-        if (assigning is DLPassingArgument) return listOf()
+        if (assigning is DLPassingArgument || assigning == null) return listOf()
         else {
-            val actionArg = assigning as DLActionArgument
-            return actionArg.action.unNest()
+            val actionAccumulator = mutableListOf<DLAction>()
+            val action = (assigning as DLActionArgument).action
+            
+            // Nested call but assign is not interesting
+            if (action is DLCallWithArguments) {
+                val call = (assigning as DLActionArgument).action as DLCallWithArguments
+                if (call.returnType is DLUnitValType) {
+                    actionAccumulator.add(call)
+                    assigning = null
+                }
+            }
+            
+            return action.unNest() + actionAccumulator
         }
     }
 

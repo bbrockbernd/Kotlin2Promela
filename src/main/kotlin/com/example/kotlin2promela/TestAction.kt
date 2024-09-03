@@ -16,6 +16,7 @@ import java.nio.file.StandardCopyOption
 class TestAction : AnAction() {
     override fun actionPerformed(e: AnActionEvent) {
         Validator(e.project!!).validate(getRelevantFiles(e.project!!, null))
+//        validateAll(e)
     }
     
     private fun validateAll(e: AnActionEvent) {

@@ -54,7 +54,7 @@ class Validator(val project: Project) {
     fun validate(files: List<VirtualFile>) = runBlocking {
         VerboseLogger.enabled = true
         files.filter{it.name.contains("test")}
-//            .filter{it.name.contains("test101.kt")}
+            .filter{it.name.contains("test99.kt")}
             .forEachIndexed { index, file ->
                 println("Runnin test ${file.name}...")
                 runTest(file) 
@@ -108,8 +108,8 @@ class Validator(val project: Project) {
                     return@forEach
                 }
                 
-                println("------------------------------MODEL--------------------------------")
-                println(model)
+                VerboseLogger.log("------------------------------MODEL--------------------------------")
+                VerboseLogger.log(model)
 
                 val modelResults = try {
                     executeModel(model)
@@ -117,7 +117,7 @@ class Validator(val project: Project) {
                     df = df.append(testName, conf.nFunctions, conf.nCoroutines, conf.nChannels, conf.nClasses, conf.deadlock, ErrorType.InvalidModelError, actualDL, false)
                     return@forEach
                 } catch (e: IllegalStateException) {
-                    df = df.append(testName, conf.nFunctions, conf.nCoroutines, conf.nChannels, conf.nClasses, conf.deadlock, ErrorType.NoError, actualDL, true)
+                    df = df.append(testName, conf.nFunctions, conf.nCoroutines, conf.nChannels, conf.nClasses, conf.deadlock, ErrorType.NoError, actualDL, false)
                     return@forEach
                 }
                 
@@ -143,10 +143,9 @@ class Validator(val project: Project) {
     
     // true = deadlock
     private fun checkModelDeadlockResult(spinOutput: String): Boolean {
-        val first = spinOutput.lines()[0]
-        if (first.contains("invalid end state")) return true
-        val second = spinOutput.lines()[1]
-        if (first.trim().isEmpty() && second.contains("Spin Version")) return false
+        val line = spinOutput.lines().firstOrNull { it.contains("invalid end state") || it.contains("Spin Version") }
+        if (line?.contains("invalid end state") == true) return true
+        if (line?.contains("Spin Version") == true) return false
         throw IllegalStateException("SPIN result not recognised")
     }
     
@@ -171,6 +170,7 @@ class Validator(val project: Project) {
         }
         runProcess.awaitExit()
         timer.cancelAndJoin()
+        VerboseLogger.log(runProcess.inputStream.bufferedReader().readText())
         val exitVal = runProcess.exitValue()
         if (exitVal == 0) return@coroutineScope false
         if (exitVal == 143) return@coroutineScope true
@@ -230,6 +230,7 @@ class Validator(val project: Project) {
         if (exitVal != 0) throw IllegalArgumentException("Invalid model")
         // get results
         val result = process.inputStream.bufferedReader().readText()
+        VerboseLogger.log(result)
         return@coroutineScope result
     }
 }

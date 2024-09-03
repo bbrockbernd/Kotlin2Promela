@@ -11,7 +11,7 @@ abstract class CallWithCalleeFunDLAction(val callee: FunctionNode): DLCallWithAr
     }
     override val implArgs: MutableMap<Int, DLPassingArgument> = mutableMapOf()
 
-    var returnType: DLValType = DLUnitValType()
+    override var returnType: DLValType = DLUnitValType()
     
     fun promArgs() = buildString {
         val myPromArgs = implArgs.toSortedMap().values + args.toSortedMap().values
