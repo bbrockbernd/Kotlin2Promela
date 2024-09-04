@@ -2,6 +2,7 @@ package com.example.kotlin2promela.graph.action
 
 import com.example.kotlin2promela.graph.FunctionNode
 import com.example.kotlin2promela.graph.variablePassing.*
+import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLUnitValType
 import com.intellij.psi.SmartPsiElementPointer
 import org.jetbrains.kotlin.psi.KtReturnExpression
 
@@ -26,8 +27,9 @@ class DLReturnAction(
         val actionList = actionToReturn.unNest().toMutableList()
         
         // If out of scope return nothing.
-        if (actionToReturn is OutOfScopeCallDLAction) {
+        if (actionToReturn is DLCallWithArguments && actionToReturn.returnType is DLUnitValType) {
             returning = null
+            actionList.add(actionToReturn)
             return actionList
         }
         

@@ -1,6 +1,10 @@
 package com.example.kotlin2promela.graph.action
 
 import com.example.kotlin2promela.graph.FunctionNode
+import com.example.kotlin2promela.graph.variablePassing.DLArgument
+import com.example.kotlin2promela.graph.variablePassing.DLPassingArgument
+import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLChannelValType
+import com.example.kotlin2promela.graph.variablePassing.variableTypes.DLValType
 import com.intellij.psi.SmartPsiElementPointer
 import org.jetbrains.kotlin.psi.KtCallExpression
 
@@ -11,7 +15,11 @@ class ChannelInitDLAction(
     override val performedIn: FunctionNode,
     override val psiPointer: SmartPsiElementPointer<KtCallExpression>,
     val channelCapacity: Int
-) : DLAction {
+) : DLCallWithArguments {
+    override val args: MutableMap<Int, DLArgument> = mutableMapOf()
+    override val implArgs: MutableMap<Int, DLPassingArgument> = mutableMapOf()
+    override val returnType: DLValType = DLChannelValType()
+
     override fun getChildActions(): List<DLAction> = emptyList()
     override fun unNest(): List<DLAction> = listOf()
 

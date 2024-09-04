@@ -112,7 +112,9 @@ class GraphInitializer(val project: Project, val dlGraph: DeadlockGraph, val rel
         val receiverAction = exploreExpression(dotQ.receiverExpression, containingFun)
         
         val selector = dotQ.selectorExpression
-        val action = if (selector is KtCallExpression) {
+        val action = if (selector is KtCallExpression && (ElementFilters.isLaunchBuilder(selector) || ElementFilters.isAsyncBuilder(selector))) {
+            processAsyncCall(selector, containingFun)
+        } else if (selector is KtCallExpression) {
             val callAction = processCall(selector, containingFun) as DLCallWithArguments
             receiverAction?.let { callAction.args[-1] = DLActionArgument(it) }
             callAction

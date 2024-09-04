@@ -28,14 +28,14 @@ class FunctionNode(
 
     constructor(function: KtFunction) : this(
         FunctionInfo(generateId(function), extractFqName(function), "file", 0),
-        extractParameters(function),
+        mutableMapOf(),
         extractReturnType(function),
         function.createSmartPointer()
     ) 
     
     constructor(clazz: KtClass) : this(
         FunctionInfo(generateId(clazz), clazz.name!!, "file", 0),
-        extractParameters(clazz),
+        mutableMapOf(),
         DLUnitValType(), // return type will be added in linking phase for constructors
         clazz.createSmartPointer(),
         true
@@ -96,21 +96,8 @@ class FunctionNode(
             if(function.isAnonymousFunction || function.name == "<anonymous>" || function.name == null) return "lambda"
             return function.name!!
         }
-        
-        fun extractParameters(clazz: KtClass): MutableMap<Int, DLParameter>  {
-            if (clazz.primaryConstructor == null) return mutableMapOf()
-            return extractParameters(clazz.primaryConstructor!!)
-        }
-        
-        fun extractParameters(function: KtFunction): MutableMap<Int, DLParameter> {
-            val map = mutableMapOf<Int, DLParameter>()
-            function.valueParameters.forEachIndexed { ind, param -> 
-                if (ElementFilters.isChannelParameter(param)) 
-                    map[ind] = DLParameter(param.textOffset, param.containingFile.virtualFile.path, param.createSmartPointer(), param.hasValOrVar(), DLChannelValType())
-            }
-            return map
-        }
-        
+       
+       // TODO also probably unnsessecary but no time to validate atm.. 
         fun extractReturnType(function: KtFunction): DLValType {
             return if (function.typeReference != null && ElementFilters.isChannelReturnType(function.typeReference!!)) {
                 DLChannelValType()

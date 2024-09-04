@@ -52,9 +52,9 @@ class Validator(val project: Project) {
     ).toDataFrame()
     
     fun validate(files: List<VirtualFile>) = runBlocking {
-        VerboseLogger.enabled = true
+        VerboseLogger.enabled = false
         files.filter{it.name.contains("test")}
-            .filter{it.name.contains("test99.kt")}
+//            .filter{it.name.contains("test343.kt")}
             .forEachIndexed { index, file ->
                 println("Runnin test ${file.name}...")
                 runTest(file) 
@@ -165,12 +165,12 @@ class Validator(val project: Project) {
         runProcessBuilder.redirectErrorStream(true)
         val runProcess = runProcessBuilder.start()
         val timer = launch { 
-            delay(10000) 
+            delay(5000) 
             runProcess.destroy()
         }
         runProcess.awaitExit()
         timer.cancelAndJoin()
-        VerboseLogger.log(runProcess.inputStream.bufferedReader().readText())
+//        VerboseLogger.log(runProcess.inputStream.bufferedReader().readText())
         val exitVal = runProcess.exitValue()
         if (exitVal == 0) return@coroutineScope false
         if (exitVal == 143) return@coroutineScope true

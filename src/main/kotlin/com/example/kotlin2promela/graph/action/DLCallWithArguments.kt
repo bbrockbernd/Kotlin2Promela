@@ -27,7 +27,7 @@ interface DLCallWithArguments : DLAction {
                 
                 // if action in argument is a call and does not return unit
                 // or action is property access and receiver is non null and the property type is non unit
-                if (actionPerformedInArgument is CallDLAction && actionPerformedInArgument.returnType !is DLUnitValType 
+                if (actionPerformedInArgument is DLCallWithArguments && actionPerformedInArgument.returnType !is DLUnitValType 
                     || actionPerformedInArgument is DLPropertyAccessAction && actionPerformedInArgument.obj != null && actionPerformedInArgument.type !is DLUnitValType) {
                     val propType = if (this is CallWithCalleeFunDLAction) {
                         if (callee.importantParameters[indexKey] == null) throw IllegalStateException("HUH WHERE MY PARAMETERS AT?")
