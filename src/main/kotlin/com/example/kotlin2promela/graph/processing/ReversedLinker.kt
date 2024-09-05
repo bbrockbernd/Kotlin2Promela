@@ -96,7 +96,7 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
         val arg = propAction.assigning
         processArgument(arg, propAction, dlType, { propAction.assigning = it}) {
             val psiProperty = propAction.psiPointer?.element!!
-            val initializer = psiProperty.initializer!!
+            val initializer = psiProperty.initializer ?: return@processArgument null // should not happen, but (hopefully) prevents crashing
             return@processArgument MyPsiUtils.getRefExprChild(initializer)!!
         }
     }
@@ -111,11 +111,11 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
         }
     }
     
-    private fun processArgument(arg: DLArgument?, action: DLAction, dlType: DLValType, setArgument: (DLArgument) -> Unit, getPsiRefForArg: () -> KtNameReferenceExpression) {
+    private fun processArgument(arg: DLArgument?, action: DLAction, dlType: DLValType, setArgument: (DLArgument) -> Unit, getPsiRefForArg: () -> KtNameReferenceExpression?) {
         // if arg is null than it should be a passing argument
         if (arg == null) {
             // insert consumer and resolve origin
-            val psiArg = getPsiRefForArg()
+            val psiArg = getPsiRefForArg() ?: return
             val origin = psiArg.reference?.resolve() 
             if (origin !is KtNamedDeclaration) {
                 VerboseLogger.log("Could not find origin of reference $psiArg")
@@ -278,7 +278,10 @@ class ReversedLinker(val dlGraph: DeadlockGraph) {
         val providerToLink = if (originFun != usageFun) { // If not pass is implicit
             val offset = originRef.textOffset
             val path = dlGraph.BFSDown(originFun, usageFun)
-            if (path.isEmpty()) throw IllegalStateException("Path must be at least 1 call")
+            if (path.isEmpty()) {
+                VerboseLogger.log("PATH must be at least 1 call ")
+                return
+            }
 
             path.first().implArgs.computeIfAbsent(offset) {
                 DLPassingArgument(DLValConsumer.createAndLinkChannelConsumer(originProvider))
